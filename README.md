@@ -1,20 +1,26 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# WorldPulse
 
-# Run and deploy your AI Studio app
+An interactive real-time visualization of global news sentiment.
 
-This contains everything you need to run your app locally.
+## Setup Instructions
 
-View your app in AI Studio: https://ai.studio/apps/drive/18wfnQDzcZYkKjwT5TVlWSWS7bgJkdf-3
+1.  **API Key**: This application requires a Google Gemini API key. 
+    Ensure the `API_KEY` environment variable is set in your build environment or `.env` file.
+    
+2.  **Running Locally**:
+    If you are running this with a bundler like Parcel or Vite, simply run the start command.
+    ```bash
+    npm start
+    ```
 
-## Run Locally
+3.  **Deployment**:
+    Ensure your deployment provider (Netlify, Vercel, etc.) exposes the `API_KEY` environment variable to the build process.
+    
+    *   **Vite**: Prefix variable with `VITE_` (e.g., `VITE_API_KEY`) and update `services/geminiService.ts` to use `import.meta.env.VITE_API_KEY`.
+    *   **Parcel/Webpack**: Ensure `process.env.API_KEY` is replaced during build.
 
-**Prerequisites:**  Node.js
+## Troubleshooting
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+*   **Blank Screen**: Open the browser developer console (F12). 
+    *   If you see "process is not defined", your build tool is not replacing `process.env.API_KEY`.
+    *   If you see "Could not find root element", ensure `index.html` has `<div id="root">`.

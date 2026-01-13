@@ -71,8 +71,26 @@
   }
 }
 </script>
+<!-- Global Error Handler for Startup Issues -->
+<script>
+  window.onerror = function(message, source, lineno, colno, error) {
+    console.error("Global Startup Error:", message, error);
+    // Only show if root is empty (meaning React didn't mount)
+    const root = document.getElementById('root');
+    if (root && root.innerHTML.trim() === "") {
+        const errDiv = document.createElement('div');
+        errDiv.style.color = '#ef4444';
+        errDiv.style.padding = '20px';
+        errDiv.style.fontFamily = 'monospace';
+        errDiv.style.background = '#1e293b';
+        errDiv.innerHTML = '<h3>Startup Error</h3><p>' + message + '</p><p>Check console for details.</p>';
+        document.body.appendChild(errDiv);
+    }
+  };
+</script>
 </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>

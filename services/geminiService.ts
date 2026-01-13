@@ -3,7 +3,19 @@ import { CountrySentimentData, SentimentType } from "../types";
 
 // Initialize Gemini Client
 // We assume process.env.API_KEY is available as per instructions.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// If process is undefined (browser without polyfill), this line might throw.
+// However, most modern bundlers (Vite/Parcel) handle process.env replacement.
+const getApiKey = () => {
+    try {
+        return process.env.API_KEY;
+    } catch (e) {
+        console.error("[GeminiService] Failed to access process.env.API_KEY", e);
+        return undefined;
+    }
+};
+
+const apiKey = getApiKey();
+const ai = new GoogleGenAI({ apiKey: apiKey });
 
 const modelId = "gemini-3-flash-preview";
 
@@ -37,6 +49,20 @@ const sentimentSchema: Schema = {
 };
 
 export const fetchCountrySentiment = async (countryName: string): Promise<CountrySentimentData> => {
+  console.log(`[GeminiService] Fetching sentiment for: ${countryName}`);
+  
+  if (!apiKey) {
+      console.error("[GeminiService] Aborting request: Missing API Key");
+      return {
+          countryName,
+          sentimentScore: 0,
+          sentimentLabel: SentimentType.NEUTRAL,
+          stateSummary: "Configuration Error: API Key missing.",
+          headlines: [],
+          lastUpdated: Date.now()
+      };
+  }
+
   try {
     const prompt = `
       Perform a real-time news sentiment analysis for ${countryName}.
@@ -67,8 +93,10 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
 
     const text = response.text;
     if (!text) {
-      throw new Error("No response from Gemini");
+      throw new Error("No response text from Gemini");
     }
+
+    console.log(`[GeminiService] Success response for ${countryName}`);
 
     const data = JSON.parse(text);
 
@@ -86,7 +114,7 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
       lastUpdated: Date.now(),
     };
   } catch (error) {
-    console.error("Error fetching sentiment for", countryName, error);
+    console.error(`[GeminiService] Error fetching sentiment for ${countryName}:`, error);
     // Fallback/Mock data if API fails (graceful degradation)
     return {
       countryName,

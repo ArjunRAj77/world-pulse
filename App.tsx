@@ -26,6 +26,13 @@ function App() {
   const [lastUpdatedCountry, setLastUpdatedCountry] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log("[App] Component Mounted");
+    if (!process.env.API_KEY) {
+        console.error("[App] CRITICAL: process.env.API_KEY is missing! The app will fail to fetch data.");
+    } else {
+        console.log("[App] API Key detected.");
+    }
+
     // Initial simulated seed data for visual interest
     const mockMap: Record<string, number> = {};
     LIVE_UPDATE_COUNTRIES.forEach(c => {
@@ -35,13 +42,11 @@ function App() {
     setSentimentMap(mockMap);
   }, []);
 
-  // Background "Heartbeat" - Update a random country every 20 seconds
+  // Background "Heartbeat" - Update a random country every 15 seconds
   useEffect(() => {
     const intervalId = setInterval(async () => {
-      // Don't update in background if user is actively looking at something else to avoid distraction?
-      // Actually, updating the map while user reads is the goal ("alive").
-      
       const randomCountry = LIVE_UPDATE_COUNTRIES[Math.floor(Math.random() * LIVE_UPDATE_COUNTRIES.length)];
+      console.log(`[Background] Polling update for: ${randomCountry}`);
       
       try {
         // We fetch silently without opening panel
@@ -55,14 +60,15 @@ function App() {
         // Clear the "just updated" tag after a few seconds
         setTimeout(() => setLastUpdatedCountry(null), 3000);
       } catch (e) {
-        console.warn("Background update failed", e);
+        console.warn("[Background] Update failed", e);
       }
-    }, 15000); // 15 seconds
+    }, 15000); 
 
     return () => clearInterval(intervalId);
   }, []);
 
   const handleCountrySelect = useCallback(async (countryName: string) => {
+    console.log(`[User Interaction] Selected country: ${countryName}`);
     setSelectedCountry(countryName);
     setIsPanelOpen(true);
     setIsLoading(true);
