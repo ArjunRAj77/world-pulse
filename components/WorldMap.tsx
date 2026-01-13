@@ -1,11 +1,12 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
-import { MapFeature, SentimentType } from '../types';
+import { MapFeature } from '../types';
 
 interface WorldMapProps {
   onCountrySelect: (countryName: string) => void;
   selectedCountry: string | null;
   sentimentMap: Record<string, number>; 
+  geoData: any;
 }
 
 const LOADING_MESSAGES = [
@@ -17,11 +18,12 @@ const LOADING_MESSAGES = [
   "Synchronizing real-time feeds..."
 ];
 
-const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, sentimentMap }) => {
+const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, sentimentMap, geoData }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const [geoData, setGeoData] = useState<any>(null);
+  const zoomBehavior = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
 
   // Loading Message Cycle
@@ -35,36 +37,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
     return () => clearInterval(interval);
   }, [geoData]);
 
-  // Load GeoJSON with Caching
-  useEffect(() => {
-    const CACHE_KEY = 'worldpulse_geojson_v1';
-    const cachedData = localStorage.getItem(CACHE_KEY);
-
-    if (cachedData) {
-      try {
-        setGeoData(JSON.parse(cachedData));
-        return;
-      } catch (e) {
-        console.warn("Invalid cached map data", e);
-        localStorage.removeItem(CACHE_KEY);
-      }
-    }
-
-    fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson')
-      .then(res => res.json())
-      .then(data => {
-        // Simple cache
-        try {
-            localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-        } catch (e) {
-            console.warn("Storage full, cannot cache map", e);
-        }
-        setGeoData(data);
-      })
-      .catch(err => console.error("Failed to load map data", err));
-  }, []);
-
-  // Draw Map
+  // Initial Map Setup & Draw
   useEffect(() => {
     if (!geoData || !svgRef.current || !containerRef.current) return;
 
@@ -109,25 +82,20 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
 
     const path = d3.geoPath().projection(projection);
 
+    const g = svg.append('g');
+
     // Zoom behavior
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([1, 8])
       .on('zoom', (event) => {
         g.attr('transform', event.transform);
-        // Reset tooltips on zoom to avoid floating issues
         if (tooltipRef.current) tooltipRef.current.style.opacity = '0';
       });
 
     svg.call(zoom);
+    zoomBehavior.current = zoom;
 
-    // Click background to deselect
-    svg.on('click', () => {
-        // onCountrySelect(null); // Optional: Allow clicking ocean to deselect?
-    });
-
-    const g = svg.append('g');
-
-    // Color scales
+    // Draw countries
     const getFillColor = (countryName: string) => {
       const score = sentimentMap[countryName] ?? 0;
       if (score > 0.1) {
@@ -139,34 +107,31 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       }
     };
 
-    // Draw countries
     g.selectAll('path')
       .data(geoData.features)
       .enter()
       .append('path')
       .attr('d', path as any)
       .attr('class', 'country-path')
+      .attr('id', (d: any) => `country-${d.properties.name.replace(/\s+/g, '-')}`) // ID for programmatic access
       .attr('fill', (d: any) => getFillColor(d.properties.name))
       .attr('stroke', '#1e293b')
       .attr('stroke-width', 0.5)
       .style('cursor', 'pointer')
-      .style('transition', 'fill 0.5s ease') // Smooth color transition
+      .style('transition', 'fill 0.5s ease')
       .on('mouseover', function(event, d: any) {
         const element = d3.select(this);
         
-        // Visual Pop
-        element.raise(); // Bring to front
+        element.raise();
         element.attr('stroke', '#fff').attr('stroke-width', 1);
         element.style('filter', 'url(#hover-glow)');
         
-        // Calculate scaling origin (centroid)
         const centroid = path.centroid(d);
         if (!isNaN(centroid[0]) && !isNaN(centroid[1])) {
              element.transition().duration(200)
             .attr('transform', `translate(${centroid[0]},${centroid[1]}) scale(1.02) translate(${-centroid[0]},${-centroid[1]})`);
         }
 
-        // Tooltip
         if (tooltipRef.current) {
             tooltipRef.current.style.opacity = '1';
             tooltipRef.current.innerText = d.properties.name;
@@ -184,7 +149,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
         const element = d3.select(this);
         element.style('filter', null);
         element.transition().duration(200)
-            .attr('transform', 'null') // Reset transform
+            .attr('transform', 'null')
             .attr('stroke', '#1e293b')
             .attr('stroke-width', 0.5);
 
@@ -195,22 +160,6 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       .on('click', (event, d: any) => {
         event.stopPropagation();
         onCountrySelect(d.properties.name);
-        
-        // Zoom to country
-        const bounds = path.bounds(d as any);
-        const dx = bounds[1][0] - bounds[0][0];
-        const dy = bounds[1][1] - bounds[0][1];
-        const x = (bounds[0][0] + bounds[1][0]) / 2;
-        const y = (bounds[0][1] + bounds[1][1]) / 2;
-        const scale = Math.max(1, Math.min(8, 0.9 / Math.max(dx / width, dy / height)));
-        const translate = [width / 2 - scale * x, height / 2 - scale * y];
-
-        svg.transition()
-          .duration(750)
-          .call(
-            zoom.transform,
-            d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale)
-          );
       });
 
     // Add pulsing indicators for hotspots
@@ -233,7 +182,6 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       .attr('opacity', 0.6)
       .classed('animate-pulse', true)
       .each(function() {
-         // Manual loop for pulse
          const circle = d3.select(this);
          function repeat() {
             circle.transition()
@@ -248,8 +196,46 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
          repeat();
       });
 
-
   }, [geoData, sentimentMap]); 
+
+  // Programmatic Zoom handling
+  useEffect(() => {
+    if (!selectedCountry || !geoData || !svgRef.current || !zoomBehavior.current || !containerRef.current) return;
+
+    const width = containerRef.current.clientWidth;
+    const height = containerRef.current.clientHeight;
+
+    // Find the feature
+    const feature = geoData.features.find((f: any) => f.properties.name === selectedCountry);
+    
+    if (feature) {
+        const svg = d3.select(svgRef.current);
+        const projection = d3.geoMercator()
+            .scale(width / 6.5)
+            .center([0, 20])
+            .translate([width / 2, height / 2]);
+        const path = d3.geoPath().projection(projection);
+        
+        const bounds = path.bounds(feature);
+        const dx = bounds[1][0] - bounds[0][0];
+        const dy = bounds[1][1] - bounds[0][1];
+        const x = (bounds[0][0] + bounds[1][0]) / 2;
+        const y = (bounds[0][1] + bounds[1][1]) / 2;
+        
+        // Cap the zoom scale
+        const scale = Math.max(1, Math.min(6, 0.9 / Math.max(dx / width, dy / height)));
+        const translate = [width / 2 - scale * x, height / 2 - scale * y];
+
+        svg.transition()
+          .duration(1200) // Slower, more dramatic zoom
+          .call(
+            zoomBehavior.current.transform,
+            d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale)
+          );
+    }
+
+  }, [selectedCountry, geoData]);
+
 
   return (
     <div ref={containerRef} className="w-full h-full bg-[#020617] relative overflow-hidden">

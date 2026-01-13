@@ -17,9 +17,51 @@ const ai = new GoogleGenAI({ apiKey: apiKey });
 const modelId = "gemini-3-flash-preview";
 const CACHE_PREFIX = 'wp_sentiment_v1_';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 Hours in milliseconds
+const RATE_LIMIT_STORAGE_KEY = 'wp_rate_limit_lock_until';
+const LAST_REQUEST_STORAGE_KEY = 'wp_last_api_req_ts';
+const MIN_REQUEST_INTERVAL = 5000; // 5 seconds between requests (Conservative 12 RPM)
 
-// Simple in-memory lock to prevent spamming API after a 429
-let rateLimitResetTime = 0;
+// Strategic countries to auto-load on startup
+export const KEY_COUNTRIES = [
+  "United States", "China", "Russia", "United Kingdom", "Germany", 
+  "France", "India", "Japan", "Brazil", "South Africa", 
+  "Australia", "Canada", "Saudi Arabia", "Iran", "North Korea"
+];
+
+// Helper to manage persistent rate limit lock
+const getRateLimitLock = (): number => {
+    try {
+        const stored = localStorage.getItem(RATE_LIMIT_STORAGE_KEY);
+        return stored ? parseInt(stored, 10) : 0;
+    } catch { return 0; }
+};
+
+const setRateLimitLock = (timestamp: number) => {
+    localStorage.setItem(RATE_LIMIT_STORAGE_KEY, timestamp.toString());
+};
+
+// Helper to throttle requests across reloads
+const enforceGlobalThrottle = async () => {
+    try {
+        const lastRequest = localStorage.getItem(LAST_REQUEST_STORAGE_KEY);
+        if (lastRequest) {
+            const lastTime = parseInt(lastRequest, 10);
+            const now = Date.now();
+            const timeSince = now - lastTime;
+            
+            if (timeSince < MIN_REQUEST_INTERVAL) {
+                const waitTime = MIN_REQUEST_INTERVAL - timeSince;
+                console.log(`[GeminiService] Global throttle active. Sleeping for ${waitTime}ms...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+        }
+        // Update timestamp for this new request
+        localStorage.setItem(LAST_REQUEST_STORAGE_KEY, Date.now().toString());
+    } catch (e) {
+        // Fallback if storage fails
+        console.warn("[GeminiService] Throttle storage error", e);
+    }
+};
 
 // Schema for structured output
 const sentimentSchema: Schema = {
@@ -41,8 +83,10 @@ const sentimentSchema: Schema = {
           title: { type: Type.STRING },
           category: { type: Type.STRING, enum: ["GOOD", "BAD", "NEUTRAL"] },
           snippet: { type: Type.STRING, description: "Very brief context." },
+          source: { type: Type.STRING, description: "The name of the news publisher (e.g. BBC, Reuters)." },
+          url: { type: Type.STRING, description: "The direct URL to the news story." }
         },
-        required: ["title", "category", "snippet"],
+        required: ["title", "category", "snippet", "source", "url"],
       },
       description: "Top 5 most relevant and recent news headlines from the last 24 hours.",
     },
@@ -50,17 +94,19 @@ const sentimentSchema: Schema = {
   required: ["sentimentScore", "stateSummary", "headlines"],
 };
 
-const getRateLimitResponse = (countryName: string): CountrySentimentData => {
+const getRateLimitResponse = (countryName: string, waitSeconds: number): CountrySentimentData => {
     return {
         countryName,
         sentimentScore: 0,
         sentimentLabel: SentimentType.NEUTRAL,
-        stateSummary: "⚠️ SYSTEM OVERLOAD: API Rate Limit Reached. Please wait 60 seconds.",
+        stateSummary: `⚠️ SYSTEM OVERLOAD: API Rate Limit Reached. Cooldown active for ${waitSeconds}s.`,
         headlines: [
             { 
                 title: "Quota Exceeded", 
                 category: "BAD", 
-                snippet: "The global sensor network is saturated. We are cooling down to prevent data corruption. Please try again in a minute." 
+                snippet: "The global sensor network is saturated. We are cooling down to prevent data corruption. Please try again in a minute.",
+                source: "System",
+                url: "#"
             }
         ],
         lastUpdated: Date.now()
@@ -93,10 +139,12 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
     }
   }
 
-  // 2. CHECK RATE LIMIT LOCK
-  if (Date.now() < rateLimitResetTime) {
-      console.warn(`[GeminiService] Client-side cooldown active for another ${(rateLimitResetTime - Date.now())/1000}s`);
-      return getRateLimitResponse(countryName);
+  // 2. CHECK PERSISTENT RATE LIMIT LOCK
+  const lockTime = getRateLimitLock();
+  if (Date.now() < lockTime) {
+      const waitSeconds = Math.ceil((lockTime - Date.now()) / 1000);
+      console.warn(`[GeminiService] Persistent cooldown active. Request aborted.`);
+      return getRateLimitResponse(countryName, waitSeconds);
   }
 
   // 3. FETCH FROM API
@@ -113,6 +161,9 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
   }
 
   try {
+    // Enforce global throttle (wait if we made a request recently, even after reload)
+    await enforceGlobalThrottle();
+
     const prompt = `
       Perform a real-time news sentiment analysis for ${countryName}.
       
@@ -124,8 +175,9 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
          - GOOD: Economic growth, peace treaties, scientific breakthroughs, social improvements.
          - BAD: Conflict, natural disasters, political corruption, crime spikes, economic crashes.
          - NEUTRAL: Routine diplomatic visits, general announcements, sports (unless major).
-      4. Calculate an aggregated sentiment score (-1.0 to 1.0) based on these 5 stories.
-      5. Provide a "State of the Nation" summary reflecting these recent events.
+      4. EXTRACT SOURCE DATA: For every headline, you MUST provide the 'source' name (e.g., CNN, Al Jazeera) and the 'url' to the article.
+      5. Calculate an aggregated sentiment score (-1.0 to 1.0) based on these 5 stories.
+      6. Provide a "State of the Nation" summary reflecting these recent events.
       
       If absolutely no news is found in the last 24h, you may look back 48h, but note this in the summary.
     `;
@@ -173,8 +225,6 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
     return result;
 
   } catch (error: any) {
-    console.error(`[GeminiService] Error fetching sentiment for ${countryName}:`, error);
-
     // Detect 429 / Quota Errors
     const errorMessage = error?.message || "";
     const isRateLimit = errorMessage.includes("429") || 
@@ -183,10 +233,13 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
                         error?.status === 429;
 
     if (isRateLimit) {
-        console.warn("[GeminiService] Rate limit detected. Activating 60s cooldown.");
-        rateLimitResetTime = Date.now() + 60000; // Block requests for 1 minute
-        return getRateLimitResponse(countryName);
+        console.warn(`[GeminiService] Rate limit hit for ${countryName}. Activating 60s persistent cooldown.`);
+        setRateLimitLock(Date.now() + 60000); // Persist lock for 60s
+        return getRateLimitResponse(countryName, 60);
     }
+
+    // Only log non-rate-limit errors as Error to clean up console
+    console.error(`[GeminiService] Error fetching sentiment for ${countryName}:`, error);
 
     // Fallback/Mock data if API fails (graceful degradation)
     return {
@@ -195,10 +248,74 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
       sentimentLabel: SentimentType.NEUTRAL,
       stateSummary: "Signal lost. Unable to retrieve live intelligence at this time.",
       headlines: [
-        { title: "Connection Error", category: "NEUTRAL", snippet: "Could not connect to analysis grid. Please try again later." }
+        { title: "Connection Error", category: "NEUTRAL", snippet: "Could not connect to analysis grid. Please try again later.", source: "System", url: "#" }
       ],
       lastUpdated: Date.now(),
     };
+  }
+};
+
+// Batch Loader
+export const preloadGlobalData = async (
+  onDataReceived: (data: CountrySentimentData) => void
+) => {
+  const needsFetch: string[] = [];
+
+  // 1. Emit cached data immediately
+  for (const country of KEY_COUNTRIES) {
+    const cacheKey = `${CACHE_PREFIX}${country}`;
+    const cachedRaw = localStorage.getItem(cacheKey);
+    let validCacheFound = false;
+
+    if (cachedRaw) {
+      try {
+        const data = JSON.parse(cachedRaw);
+        if (Date.now() - data.lastUpdated < CACHE_DURATION) {
+          console.log(`[GeminiService] Preload hit cache for ${country}`);
+          onDataReceived(data); // Immediate update
+          validCacheFound = true;
+        }
+      } catch (e) { localStorage.removeItem(cacheKey); }
+    }
+
+    if (!validCacheFound) {
+      needsFetch.push(country);
+    }
+  }
+
+  // 2. Fetch missing data with Rate Limiting
+  
+  if (needsFetch.length > 0) {
+      console.log(`[GeminiService] Need to fetch ${needsFetch.length} countries. Starting sequence...`);
+      
+      for (let i = 0; i < needsFetch.length; i++) {
+        
+        // Abort if locked
+        if (Date.now() < getRateLimitLock()) {
+            console.log("[GeminiService] Preload aborted due to global rate limit lock.");
+            break;
+        }
+
+        const country = needsFetch[i];
+        
+        // Use the centralized throttle logic inside fetchCountrySentiment
+        // But also add a small delay here to prevent overlapping console logs/UI updates being too frenetic
+        if (i > 0) {
+             await new Promise(r => setTimeout(r, 1000));
+        }
+
+        const data = await fetchCountrySentiment(country);
+        
+        // If we hit a rate limit during preload, stop the queue immediately
+        if (data.stateSummary.includes("SYSTEM OVERLOAD")) {
+            console.warn("[GeminiService] Rate limit hit during preload. Stopping batch.");
+            break;
+        }
+
+        onDataReceived(data);
+      }
+  } else {
+      console.log("[GeminiService] All key countries already cached.");
   }
 };
 

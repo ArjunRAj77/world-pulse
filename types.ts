@@ -9,6 +9,7 @@ export interface NewsHeadline {
   category: 'GOOD' | 'BAD' | 'NEUTRAL';
   snippet: string;
   source?: string;
+  url?: string;
 }
 
 export interface CountrySentimentData {

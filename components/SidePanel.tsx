@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Radio, Database } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink } from 'lucide-react';
 import { CountrySentimentData, SentimentType } from '../types';
 import clsx from 'clsx';
 
@@ -11,29 +11,37 @@ interface SidePanelProps {
   countryName: string | null;
 }
 
-const PANEL_LOADING_MESSAGES = [
-  "Intercepting local news feeds...",
-  "Translating regional headlines...",
-  "Analyzing semantic density...",
-  "Calculating social stability index...",
-  "Synthesizing sentiment vectors...",
-  "Establishing secure uplink..."
+const FUN_FACTS = [
+  "France uses 12 different time zones, the most of any country.",
+  "Canada has more lakes than the rest of the world combined.",
+  "There are more chickens than people on Earth.",
+  "Antarctica is technically the world's largest desert.",
+  "Bananas are curved because they grow towards the sun.",
+  "A day on Venus is longer than a year on Venus.",
+  "The entire population of the world could fit inside Los Angeles.",
+  "There are more stars in space than grains of sand on every beach.",
+  "Octopuses have three hearts and blue blood.",
+  "Honey never spoils; archaeologists have found edible honey in ancient Egyptian tombs.",
+  "The shortest commercial flight in the world lasts just 57 seconds.",
+  "North Korea and Cuba are the only places you can't buy Coca-Cola.",
+  "The Sahara Desert used to be a tropical rainforest.",
+  "Sharks existed before trees.",
+  "Wombat poop is cube-shaped."
 ];
 
 const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading, countryName }) => {
-  const [loadingMsg, setLoadingMsg] = useState(PANEL_LOADING_MESSAGES[0]);
+  const [currentFact, setCurrentFact] = useState(FUN_FACTS[0]);
 
   useEffect(() => {
     if (!isLoading) return;
     
-    // Reset to first message when loading starts
-    setLoadingMsg(PANEL_LOADING_MESSAGES[0]);
+    // Pick a random fact initially
+    setCurrentFact(FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)]);
     
-    let msgIndex = 0;
     const interval = setInterval(() => {
-      msgIndex = (msgIndex + 1) % PANEL_LOADING_MESSAGES.length;
-      setLoadingMsg(PANEL_LOADING_MESSAGES[msgIndex]);
-    }, 1200); // Slightly slower for readability
+       // Cycle randomly
+       setCurrentFact(FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)]);
+    }, 4000); // Slower read time for facts
 
     return () => clearInterval(interval);
   }, [isLoading]);
@@ -85,28 +93,23 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-8 relative">
         {isLoading ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-6 bg-[#0f172a]/50 backdrop-blur-sm">
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center space-y-8 bg-[#0f172a]/50 backdrop-blur-sm">
              <div className="relative">
                 <div className="absolute inset-0 bg-indigo-500/20 rounded-full blur-xl animate-pulse"></div>
                 <Loader2 className="w-12 h-12 text-indigo-400 animate-spin relative z-10" />
              </div>
              
-             <div className="space-y-2 max-w-[80%]">
-                <div className="flex items-center justify-center gap-2 text-indigo-300 font-mono text-sm tracking-wider">
-                    <Radio className="w-4 h-4 animate-pulse" />
-                    <span>DATA_STREAM_ACTIVE</span>
+             <div className="space-y-4 max-w-sm animate-[fadeIn_0.5s_ease-out]">
+                <div className="flex items-center justify-center gap-2 text-yellow-400 font-bold tracking-widest text-xs uppercase mb-2">
+                    <Lightbulb className="w-4 h-4" />
+                    <span>Did you know?</span>
                 </div>
-                <p className="text-slate-400 font-light text-sm animate-[pulse_2s_ease-in-out_infinite]">
-                    {loadingMsg}
+                <p className="text-slate-300 text-lg font-medium leading-relaxed italic">
+                    "{currentFact}"
                 </p>
-             </div>
-
-             {/* Faux Terminal Output */}
-             <div className="w-full max-w-xs bg-slate-900/80 rounded border border-slate-800 p-3 font-mono text-[10px] text-left opacity-75">
-                <div className="text-emerald-500/80">&gt; INIT_PROTOCOL_V3</div>
-                <div className="text-slate-500">&gt; TARGET: {countryName?.toUpperCase()}</div>
-                <div className="text-slate-500">&gt; SEARCH_DEPTH: 24H</div>
-                <div className="text-indigo-400/80 animate-pulse">&gt; {loadingMsg.split(' ')[0].toUpperCase()}...</div>
+                <div className="pt-4 text-xs text-slate-500 font-mono">
+                    ANALYZING REGIONAL DATA...
+                </div>
              </div>
           </div>
         ) : data ? (
@@ -153,11 +156,17 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
               
               <div className="space-y-4">
                 {data.headlines.map((news, idx) => (
-                  <div key={idx} className="bg-slate-800/50 hover:bg-slate-800 transition-colors p-4 rounded-lg border border-slate-700/50 group">
-                    <div className="flex justify-between items-start gap-4">
-                        <h4 className="text-slate-100 font-medium leading-snug group-hover:text-sky-300 transition-colors">
+                  <div key={idx} className="bg-slate-800/50 hover:bg-slate-800 transition-colors p-4 rounded-lg border border-slate-700/50 group relative">
+                    <div className="flex justify-between items-start gap-4 mb-2">
+                        <a 
+                           href={news.url || '#'} 
+                           target="_blank" 
+                           rel="noopener noreferrer"
+                           className="text-slate-100 font-medium leading-snug group-hover:text-sky-300 transition-colors flex gap-2 items-start"
+                        >
                             {news.title}
-                        </h4>
+                            {news.url && <ExternalLink className="w-3 h-3 opacity-50 flex-shrink-0 mt-1" />}
+                        </a>
                         <span className={clsx(
                             "text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider min-w-fit",
                             news.category === 'GOOD' ? 'bg-emerald-900/50 text-emerald-400' :
@@ -167,9 +176,18 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
                             {news.category}
                         </span>
                     </div>
-                    <p className="text-sm text-slate-400 mt-2 font-light leading-relaxed">
+                    
+                    <p className="text-sm text-slate-400 mb-3 font-light leading-relaxed">
                       {news.snippet}
                     </p>
+
+                    {/* Source Attribution */}
+                    {news.source && (
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono uppercase border-t border-slate-700/50 pt-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                            SOURCE: <span className="text-slate-300">{news.source}</span>
+                        </div>
+                    )}
                   </div>
                 ))}
               </div>
