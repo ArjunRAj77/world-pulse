@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Radio } from 'lucide-react';
 import { CountrySentimentData, SentimentType } from '../types';
 import clsx from 'clsx';
 
@@ -11,7 +11,33 @@ interface SidePanelProps {
   countryName: string | null;
 }
 
+const PANEL_LOADING_MESSAGES = [
+  "Intercepting local news feeds...",
+  "Translating regional headlines...",
+  "Analyzing semantic density...",
+  "Calculating social stability index...",
+  "Synthesizing sentiment vectors...",
+  "Establishing secure uplink..."
+];
+
 const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading, countryName }) => {
+  const [loadingMsg, setLoadingMsg] = useState(PANEL_LOADING_MESSAGES[0]);
+
+  useEffect(() => {
+    if (!isLoading) return;
+    
+    // Reset to first message when loading starts
+    setLoadingMsg(PANEL_LOADING_MESSAGES[0]);
+    
+    let msgIndex = 0;
+    const interval = setInterval(() => {
+      msgIndex = (msgIndex + 1) % PANEL_LOADING_MESSAGES.length;
+      setLoadingMsg(PANEL_LOADING_MESSAGES[msgIndex]);
+    }, 1200); // Slightly slower for readability
+
+    return () => clearInterval(interval);
+  }, [isLoading]);
+
   if (!isOpen) return null;
 
   const getSentimentColor = (label?: SentimentType) => {
@@ -49,22 +75,36 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-8">
+      <div className="flex-1 overflow-y-auto p-6 space-y-8 relative">
         {isLoading ? (
-          <div className="space-y-6 animate-pulse">
-            <div className="h-4 bg-slate-700 rounded w-3/4"></div>
-            <div className="h-32 bg-slate-700/50 rounded-lg"></div>
-            <div className="h-4 bg-slate-700 rounded w-1/2"></div>
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-24 bg-slate-700/30 rounded-lg"></div>
-              ))}
-            </div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-6 bg-[#0f172a]/50 backdrop-blur-sm">
+             <div className="relative">
+                <div className="absolute inset-0 bg-indigo-500/20 rounded-full blur-xl animate-pulse"></div>
+                <Loader2 className="w-12 h-12 text-indigo-400 animate-spin relative z-10" />
+             </div>
+             
+             <div className="space-y-2 max-w-[80%]">
+                <div className="flex items-center justify-center gap-2 text-indigo-300 font-mono text-sm tracking-wider">
+                    <Radio className="w-4 h-4 animate-pulse" />
+                    <span>DATA_STREAM_ACTIVE</span>
+                </div>
+                <p className="text-slate-400 font-light text-sm animate-[pulse_2s_ease-in-out_infinite]">
+                    {loadingMsg}
+                </p>
+             </div>
+
+             {/* Faux Terminal Output */}
+             <div className="w-full max-w-xs bg-slate-900/80 rounded border border-slate-800 p-3 font-mono text-[10px] text-left opacity-75">
+                <div className="text-emerald-500/80">> INIT_PROTOCOL_V3</div>
+                <div className="text-slate-500">> TARGET: {countryName?.toUpperCase()}</div>
+                <div className="text-slate-500">> SEARCH_DEPTH: 24H</div>
+                <div className="text-indigo-400/80 animate-pulse">> {loadingMsg.split(' ')[0].toUpperCase()}...</div>
+             </div>
           </div>
         ) : data ? (
           <>
             {/* Status Card */}
-            <div className={clsx("p-5 rounded-xl border", getSentimentColor(data.sentimentLabel))}>
+            <div className={clsx("p-5 rounded-xl border animate-[fadeIn_0.5s_ease-out]", getSentimentColor(data.sentimentLabel))}>
               <div className="flex items-center gap-3 mb-3">
                 {getSentimentIcon(data.sentimentLabel)}
                 <span className="font-bold text-lg tracking-wide uppercase">
@@ -89,7 +129,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
             </div>
 
             {/* Headlines Section */}
-            <div>
+            <div className="animate-[fadeIn_0.7s_ease-out]">
               <h3 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
                 <Newspaper className="w-5 h-5 text-sky-400" />
                 Latest Headlines (24h)
@@ -130,6 +170,13 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
       <div className="p-4 border-t border-slate-700/50 text-center text-xs text-slate-500 font-mono">
         POWERED BY GEMINI 3 FLASH & GOOGLE SEARCH
       </div>
+      
+      <style>{`
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 };
