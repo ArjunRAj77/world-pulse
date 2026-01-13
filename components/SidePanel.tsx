@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Radio } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Radio, Database } from 'lucide-react';
 import { CountrySentimentData, SentimentType } from '../types';
 import clsx from 'clsx';
 
@@ -56,6 +56,14 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
     }
   };
 
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleString(undefined, {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+  };
+
+  const isCached = data ? (Date.now() - data.lastUpdated) > 10000 : false; // If older than 10s, it's from cache
+
   return (
     <div className={clsx(
       "absolute top-0 right-0 h-full w-full md:w-[450px] z-20 transition-transform duration-300 ease-out transform glass-panel text-white shadow-2xl flex flex-col",
@@ -105,11 +113,19 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
           <>
             {/* Status Card */}
             <div className={clsx("p-5 rounded-xl border animate-[fadeIn_0.5s_ease-out]", getSentimentColor(data.sentimentLabel))}>
-              <div className="flex items-center gap-3 mb-3">
-                {getSentimentIcon(data.sentimentLabel)}
-                <span className="font-bold text-lg tracking-wide uppercase">
-                  {data.sentimentLabel} Outlook
-                </span>
+              <div className="flex items-center justify-between mb-3">
+                 <div className="flex items-center gap-3">
+                    {getSentimentIcon(data.sentimentLabel)}
+                    <span className="font-bold text-lg tracking-wide uppercase">
+                    {data.sentimentLabel} Outlook
+                    </span>
+                 </div>
+                 {isCached && (
+                    <div className="flex items-center gap-1 text-[10px] text-slate-400 bg-slate-800 px-2 py-1 rounded-full border border-slate-700">
+                        <Database className="w-3 h-3" />
+                        <span>CACHED</span>
+                    </div>
+                 )}
               </div>
               <p className="text-sm opacity-90 leading-relaxed font-light">
                 {data.stateSummary}
@@ -123,7 +139,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
                 </div>
                 <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4" />
-                    <span>Last 24h</span>
+                    <span>Updated: {formatDate(data.lastUpdated)}</span>
                 </div>
               </div>
             </div>

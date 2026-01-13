@@ -1,17 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import WorldMap from './components/WorldMap';
 import SidePanel from './components/SidePanel';
 import Header from './components/Header';
-import { fetchCountrySentiment } from './services/geminiService';
+import { fetchCountrySentiment, getCachedSentimentMap } from './services/geminiService';
 import { CountrySentimentData } from './types';
-
-// List of major countries to cycle through for background updates
-const LIVE_UPDATE_COUNTRIES = [
-  'United States', 'China', 'Russia', 'Ukraine', 'Israel', 
-  'India', 'Brazil', 'United Kingdom', 'Germany', 'France', 
-  'Japan', 'South Korea', 'Iran', 'Saudi Arabia', 'Turkey',
-  'Mexico', 'Canada', 'Australia', 'South Africa', 'Nigeria'
-];
 
 function App() {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -22,49 +14,20 @@ function App() {
   // Stores the visual score for the map
   const [sentimentMap, setSentimentMap] = useState<Record<string, number>>({});
   
-  // Track last updated for UI "liveness"
-  const [lastUpdatedCountry, setLastUpdatedCountry] = useState<string | null>(null);
-
   useEffect(() => {
     console.log("[App] Component Mounted");
     if (!process.env.API_KEY) {
         console.error("[App] CRITICAL: process.env.API_KEY is missing! The app will fail to fetch data.");
-    } else {
-        console.log("[App] API Key detected.");
     }
 
-    // Initial simulated seed data for visual interest
-    const mockMap: Record<string, number> = {};
-    LIVE_UPDATE_COUNTRIES.forEach(c => {
-        // Randomize slightly to not be static, biased towards neutral/slight tension
-        mockMap[c] = (Math.random() * 1.5) - 0.75; 
-    });
-    setSentimentMap(mockMap);
-  }, []);
-
-  // Background "Heartbeat" - Update a random country every 15 seconds
-  useEffect(() => {
-    const intervalId = setInterval(async () => {
-      const randomCountry = LIVE_UPDATE_COUNTRIES[Math.floor(Math.random() * LIVE_UPDATE_COUNTRIES.length)];
-      console.log(`[Background] Polling update for: ${randomCountry}`);
-      
-      try {
-        // We fetch silently without opening panel
-        const data = await fetchCountrySentiment(randomCountry);
-        setSentimentMap(prev => ({
-          ...prev,
-          [randomCountry]: data.sentimentScore
-        }));
-        setLastUpdatedCountry(randomCountry);
-        
-        // Clear the "just updated" tag after a few seconds
-        setTimeout(() => setLastUpdatedCountry(null), 3000);
-      } catch (e) {
-        console.warn("[Background] Update failed", e);
-      }
-    }, 15000); 
-
-    return () => clearInterval(intervalId);
+    // 1. Load any cached data immediately so the map isn't empty
+    const cachedMap = getCachedSentimentMap();
+    
+    // 2. Add some visual noise for countries not in cache (optional, keeps the map looking "alive")
+    // We only apply random noise to countries NOT in the cache.
+    // This allows the map to start "blank" but retain history.
+    
+    setSentimentMap(cachedMap);
   }, []);
 
   const handleCountrySelect = useCallback(async (countryName: string) => {
@@ -74,13 +37,13 @@ function App() {
     setIsLoading(true);
     setSentimentData(null);
 
-    // Fetch real data from Gemini
+    // Fetch real data from Gemini (Service handles 24h caching)
     const data = await fetchCountrySentiment(countryName);
     
     setSentimentData(data);
     setIsLoading(false);
 
-    // Update the visual map with the REAL score we just got
+    // Update the visual map with the score
     setSentimentMap(prev => ({
         ...prev,
         [countryName]: data.sentimentScore
@@ -115,14 +78,8 @@ function App() {
       {/* Live Activity Indicator */}
       <div className="absolute bottom-4 left-4 flex flex-col gap-2 pointer-events-none z-10">
          <div className="text-[10px] text-slate-500 font-mono">
-            SYSTEM STATUS: ONLINE
+            SYSTEM STATUS: ONLINE (OPTIMIZED MODE)
          </div>
-         {lastUpdatedCountry && (
-           <div className="flex items-center gap-2 text-emerald-400 animate-pulse">
-             <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-             <span className="text-xs font-mono uppercase">Updated: {lastUpdatedCountry}</span>
-           </div>
-         )}
       </div>
     </div>
   );
