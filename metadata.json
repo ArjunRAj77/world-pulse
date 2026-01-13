@@ -1,0 +1,5 @@
+{
+  "name": "WorldPulse",
+  "description": "An interactive real-time visualization of global news sentiment. Explore the world map to see how current events shape the emotional pulse of nations.",
+  "requestFramePermissions": []
+}
