@@ -95,10 +95,10 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
 
              {/* Faux Terminal Output */}
              <div className="w-full max-w-xs bg-slate-900/80 rounded border border-slate-800 p-3 font-mono text-[10px] text-left opacity-75">
-                <div className="text-emerald-500/80">> INIT_PROTOCOL_V3</div>
-                <div className="text-slate-500">> TARGET: {countryName?.toUpperCase()}</div>
-                <div className="text-slate-500">> SEARCH_DEPTH: 24H</div>
-                <div className="text-indigo-400/80 animate-pulse">> {loadingMsg.split(' ')[0].toUpperCase()}...</div>
+                <div className="text-emerald-500/80">&gt; INIT_PROTOCOL_V3</div>
+                <div className="text-slate-500">&gt; TARGET: {countryName?.toUpperCase()}</div>
+                <div className="text-slate-500">&gt; SEARCH_DEPTH: 24H</div>
+                <div className="text-indigo-400/80 animate-pulse">&gt; {loadingMsg.split(' ')[0].toUpperCase()}...</div>
              </div>
           </div>
         ) : data ? (
