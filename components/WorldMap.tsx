@@ -14,20 +14,19 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   
-  // D3 Refs to maintain state across renders without re-selecting
+  // D3 Refs
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
-  const projectionRef = useRef<d3.GeoProjection>(d3.geoMercator());
+  const projectionRef = useRef<d3.GeoProjection>(d3.geoMercator()); 
 
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  // 1. Resize Observer to track container dimensions
+  // 1. Resize Observer
   useEffect(() => {
     if (!containerRef.current) return;
 
     const resizeObserver = new ResizeObserver(entries => {
       for (let entry of entries) {
-        // Use requestAnimationFrame for smoother resize handling
         requestAnimationFrame(() => {
             if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
                 setDimensions({
@@ -43,76 +42,90 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
     return () => resizeObserver.disconnect();
   }, []);
 
-  // 2. Initialize and Draw Map Geometry (Runs only on Data Load or Resize)
+  // 2. Initialize and Draw Map
   useEffect(() => {
-    // Only proceed if we have data and dimensions
     if (!geoData || !svgRef.current || dimensions.width === 0 || dimensions.height === 0) return;
 
     const { width, height } = dimensions;
     const svg = d3.select(svgRef.current);
-
-    // Setup Group if not exists
-    let g = gRef.current;
-    if (!g) {
-      g = svg.append('g');
-      gRef.current = g;
-    }
-
-    // Projection Logic (Responsive - Fit Extent)
-    // fitExtent calculates the scale and translate automatically to fit the GeoJSON
-    // within the box [[20, 20], [width-20, height-20]] (adding padding)
-    const projection = d3.geoMercator()
-      .fitExtent([[20, 20], [width - 20, height - 20]], geoData);
     
-    // Store projection for zoom calculations
+    // Clear previous contents
+    svg.selectAll('*').remove();
+    
+    // Create Group
+    const g = svg.append('g');
+    gRef.current = g;
+
+    // Filter out Antarctica for the layout calculation to prevent infinite stretching in Mercator
+    // and to allow the rest of the world to fill the screen nicely.
+    const featuresWithoutAntarctica = {
+        type: "FeatureCollection",
+        features: geoData.features.filter((f: any) => f.properties.name !== "Antarctica")
+    };
+
+    // Projection Setup - Mercator for flat look
+    const projection = d3.geoMercator()
+      .fitExtent([[20, 20], [width - 20, height - 20]], featuresWithoutAntarctica as any);
+    
     projectionRef.current = projection;
 
     const pathGenerator = d3.geoPath().projection(projection);
+    const graticule = d3.geoGraticule();
 
     // Zoom Behavior
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([1, 12])
       .translateExtent([[0, 0], [width, height]])
       .on('zoom', (event) => {
-        if (gRef.current) {
-             gRef.current.attr('transform', event.transform.toString());
-             gRef.current.selectAll('path').attr('stroke-width', 0.5 / event.transform.k);
-        }
+         g.attr('transform', event.transform.toString());
+         g.selectAll('.country-block').attr('stroke-width', 0.5 / event.transform.k);
+         g.selectAll('.graticule').attr('stroke-width', 0.5 / event.transform.k);
       });
 
-    // Store zoom instance
     zoomRef.current = zoom;
-    
-    // Bind zoom to SVG
     svg.call(zoom);
 
-    // Render Paths
-    const paths = g.selectAll<SVGPathElement, any>('path')
+    // --- DRAWING ORDER ---
+
+    // 1. Ocean Background (Rectangular for Mercator)
+    // Instead of a sphere path, we just fill the group background or use a large rect
+    // But since we want to zoom the "ocean" with the map, we can use the Graticule outline or just a big rect
+    g.append('rect')
+      .attr('x', -width * 2)
+      .attr('y', -height * 2)
+      .attr('width', width * 5)
+      .attr('height', height * 5)
+      .attr('fill', '#e0f2fe') // Light blue ocean
+      .attr('stroke', 'none');
+
+    // 2. Graticules (Grid Lines)
+    g.append('path')
+      .datum(graticule)
+      .attr('class', 'graticule')
+      .attr('d', pathGenerator as any)
+      .attr('fill', 'none')
+      .attr('stroke', '#94a3b8') // Slate 400
+      .attr('stroke-width', 0.5)
+      .attr('stroke-opacity', 0.3);
+
+    // 3. Countries
+    const paths = g.selectAll<SVGPathElement, any>('.country-block')
       .data(geoData.features, (d: any) => d.properties.name);
 
-    // Enter + Update + Exit pattern
     paths.enter()
       .append('path')
       .attr('class', 'country-block')
-      .attr('fill', '#f8fafc') // Fix: Default fill color to prevent black map
-      .attr('stroke', '#cbd5e1')
+      .attr('fill', '#ffffff') // Clean white default
+      .attr('stroke', '#cbd5e1') // Slate 300 borders
       .attr('stroke-width', 0.5)
       .style('cursor', 'pointer')
-      // Merge allows us to update the 'd' attribute on both new and existing paths when resize happens
-      .merge(paths as any)
-      .attr('d', pathGenerator as any); // Update geometry
-
-    paths.exit().remove();
-
-    // Event Listeners
-    // We re-bind these on update to ensure they have the latest closure scope if needed
-    g.selectAll('path')
+      .attr('d', pathGenerator as any)
       .on('mouseover', function(event, d: any) {
         const sel = d3.select(this);
-        sel.raise(); // Bring to front
+        sel.raise();
+        sel.transition().duration(200).attr('fill', '#f1f5f9'); // Highlight on hover
         sel.attr('stroke', '#64748b').attr('stroke-width', 1 / (d3.zoomTransform(svg.node()!).k || 1));
         
-        // Show tooltip
         if (tooltipRef.current) {
             tooltipRef.current.style.opacity = '1';
             tooltipRef.current.innerText = d.properties.name;
@@ -128,8 +141,15 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       })
       .on('mouseout', function(event, d: any) {
         const sel = d3.select(this);
-        // Reset stroke
         sel.attr('stroke', '#cbd5e1').attr('stroke-width', 0.5 / (d3.zoomTransform(svg.node()!).k || 1));
+        
+        const sentimentScore = sentimentMap[d.properties.name] ?? 0;
+        let fillColor = '#ffffff';
+        if (sentimentScore > 0.1) fillColor = d3.interpolateRgb("#ffffff", "#34d399")(sentimentScore * 1.5);
+        if (sentimentScore < -0.1) fillColor = d3.interpolateRgb("#ffffff", "#f87171")(Math.abs(sentimentScore) * 1.5);
+        
+        sel.transition().duration(200).attr('fill', fillColor);
+
         if (tooltipRef.current) {
             tooltipRef.current.style.opacity = '0';
         }
@@ -139,24 +159,28 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
         onCountrySelect(d.properties.name);
       });
 
-  }, [geoData, dimensions]); // Trigger on Data Load or Resize
+    // Initial Zoom (1.0x - Mercator fills the space well by default with fitExtent)
+    if (!selectedCountry) {
+        const initialTransform = d3.zoomIdentity;
+        svg.call(zoom.transform, initialTransform);
+    }
 
-  // 3. Update Colors (Sentiment Only) - No Geometry redraw
+  }, [geoData, dimensions]); 
+
+  // 3. Update Colors (Sentiment)
   useEffect(() => {
-    // Added geoData/dimensions dependency to ensure color re-applies after a resize/re-render of geometry
     if (!gRef.current || !sentimentMap) return;
 
     const getFillColor = (name: string) => {
       const score = sentimentMap[name] ?? 0;
-      if (score > 0.1) return d3.interpolateRgb("#f8fafc", "#34d399")(score * 1.5);
-      if (score < -0.1) return d3.interpolateRgb("#f8fafc", "#f87171")(Math.abs(score) * 1.5);
-      return "#f8fafc";
+      if (score > 0.1) return d3.interpolateRgb("#ffffff", "#34d399")(score * 1.5);
+      if (score < -0.1) return d3.interpolateRgb("#ffffff", "#f87171")(Math.abs(score) * 1.5);
+      return "#ffffff";
     };
 
-    // Use D3 transition for smooth updates without React re-render of SVG
-    gRef.current.selectAll('path')
+    gRef.current.selectAll('.country-block')
       .transition()
-      .duration(500)
+      .duration(700)
       .attr('fill', (d: any) => getFillColor(d.properties.name))
       .attr('class', (d: any) => {
           const score = sentimentMap[d.properties.name] ?? 0;
@@ -165,14 +189,11 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
 
   }, [sentimentMap, geoData, dimensions]);
 
-  // 4. Handle Selection Zoom
+  // 4. Handle Focus Zoom
   useEffect(() => {
     if (!selectedCountry || !zoomRef.current || !svgRef.current || dimensions.width === 0) return;
     
-    // Re-create projection logic locally to calculate bounds
-    // We use the stored projectionRef which was configured with fitExtent
     const pathGenerator = d3.geoPath().projection(projectionRef.current);
-    
     const feature = geoData.features.find((f: any) => f.properties.name === selectedCountry);
     
     if (feature) {
@@ -182,7 +203,6 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
         const x = (bounds[0][0] + bounds[1][0]) / 2;
         const y = (bounds[0][1] + bounds[1][1]) / 2;
         
-        // Calculate zoom scale
         const s = Math.max(1, Math.min(8, 0.9 / Math.max(dx / dimensions.width, dy / dimensions.height)));
         
         const transform = d3.zoomIdentity
@@ -199,8 +219,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
 
   const handleReset = () => {
     if (svgRef.current && zoomRef.current) {
-        const svg = d3.select(svgRef.current);
-        svg.transition()
+        d3.select(svgRef.current).transition()
             .duration(750)
             .ease(d3.easeCubicOut)
             .call(zoomRef.current.transform, d3.zoomIdentity);
@@ -208,16 +227,18 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
   };
 
   return (
-    <div ref={containerRef} className="w-full h-full bg-[#e0f2fe] relative overflow-hidden">
-        {/* Background */}
-        <div className="absolute inset-0 z-0 pointer-events-none opacity-60">
-            <div className="absolute inset-0 bg-gradient-to-b from-sky-100 to-sky-300"></div>
-            <div className="absolute inset-0 wave-bg"></div>
-        </div>
+    <div ref={containerRef} className="w-full h-full bg-[#f0f9ff] relative overflow-hidden">
+        {/* Simple Flat Background */}
+        <div className="absolute inset-0 z-0 bg-sky-50 opacity-60 pointer-events-none" />
+
+        {!geoData && (
+             <div className="absolute inset-0 flex items-center justify-center text-slate-400 z-20">
+                <span className="animate-pulse tracking-widest font-mono text-sm">INITIALIZING GEO-GRID...</span>
+             </div>
+        )}
 
         <svg ref={svgRef} className="w-full h-full block relative z-10" />
         
-        {/* Reset Button */}
         <button
             onClick={(e) => {
                 e.stopPropagation();
@@ -231,22 +252,10 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
 
         <div 
             ref={tooltipRef}
-            className="fixed pointer-events-none bg-white/95 border border-slate-200 text-slate-800 text-xs font-bold px-3 py-2 rounded shadow-lg z-50 backdrop-blur opacity-0 transition-opacity duration-150 uppercase tracking-widest whitespace-nowrap"
+            className="fixed pointer-events-none bg-white/95 border border-slate-200 text-slate-800 text-xs font-bold px-3 py-2 rounded shadow-xl z-50 backdrop-blur opacity-0 transition-opacity duration-150 uppercase tracking-widest whitespace-nowrap"
         />
         
         <style>{`
-            .wave-bg {
-                background-image: 
-                    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.4) 0%, transparent 50%),
-                    radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.3) 0%, transparent 40%),
-                    radial-gradient(circle at 100% 100%, rgba(255, 255, 255, 0.3) 0%, transparent 40%);
-                background-size: 150% 150%;
-                animation: oceanBreathing 15s ease-in-out infinite alternate;
-            }
-            @keyframes oceanBreathing {
-                0% { background-position: 0% 0%; }
-                100% { background-position: 100% 100%; }
-            }
             @keyframes pulseBrightness {
                 0%, 100% { filter: brightness(1); }
                 50% { filter: brightness(0.95); }

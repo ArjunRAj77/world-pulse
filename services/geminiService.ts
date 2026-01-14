@@ -2,8 +2,9 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { CountrySentimentData, SentimentType } from "../types";
 
 // Initialize Gemini Client
-// The API key must be obtained exclusively from the environment variable process.env.API_KEY
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// The API key must be obtained from the environment variable GEMINI_API_KEY (or API_KEY as fallback)
+const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+const ai = new GoogleGenAI({ apiKey: apiKey });
 
 const modelId = "gemini-3-flash-preview";
 const CACHE_PREFIX = 'wp_sentiment_v2_'; // Bumped version for new schema
@@ -143,13 +144,13 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
   }
 
   // 3. FETCH FROM API
-  if (!process.env.API_KEY) {
-      console.error("[GeminiService] Aborting request: Missing API Key");
+  if (!apiKey) {
+      console.error("[GeminiService] Aborting request: Missing API Key (GEMINI_API_KEY)");
       return {
           countryName,
           sentimentScore: 0,
           sentimentLabel: SentimentType.NEUTRAL,
-          stateSummary: "Configuration Error: API Key missing.",
+          stateSummary: "Configuration Error: API Key missing. Please check GEMINI_API_KEY.",
           headlines: [],
           lastUpdated: Date.now()
       };

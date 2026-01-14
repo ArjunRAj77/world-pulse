@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Radar, Search, Command } from 'lucide-react';
+import { Radar, Search, Command, X } from 'lucide-react';
 import clsx from 'clsx';
 
 interface HeaderProps {
@@ -36,9 +36,23 @@ const Header: React.FC<HeaderProps> = ({ countries, onCountrySelect, isPanelOpen
   }, []);
 
   const handleSelect = (country: string) => {
-    setSearchTerm(''); 
+    setSearchTerm(country); 
     setIsFocused(false);
     onCountrySelect(country);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+        if (suggestions.length > 0) {
+            handleSelect(suggestions[0]);
+        }
+    }
+  };
+
+  const handleClear = () => {
+    setSearchTerm('');
+    setSuggestions([]);
+    setIsFocused(true);
   };
 
   return (
@@ -82,8 +96,16 @@ const Header: React.FC<HeaderProps> = ({ countries, onCountrySelect, isPanelOpen
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => setIsFocused(true)}
+                onKeyDown={handleKeyDown}
             />
-            {!isFocused && !searchTerm && (
+            {searchTerm ? (
+                <button 
+                    onClick={handleClear}
+                    className="p-1 hover:bg-slate-100 rounded-full transition-colors"
+                >
+                    <X className="w-3 h-3 text-slate-400" />
+                </button>
+            ) : !isFocused && (
                 <div className="hidden md:flex items-center gap-1 text-[10px] text-slate-500 border border-slate-200 bg-slate-50 rounded px-1.5 py-0.5">
                     <Command className="w-3 h-3" />
                     <span>K</span>
