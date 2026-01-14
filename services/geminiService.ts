@@ -2,20 +2,11 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { CountrySentimentData, SentimentType } from "../types";
 
 // Initialize Gemini Client
-const getApiKey = () => {
-    try {
-        return process.env.API_KEY;
-    } catch (e) {
-        console.error("[GeminiService] Failed to access process.env.API_KEY", e);
-        return undefined;
-    }
-};
-
-const apiKey = getApiKey();
-const ai = new GoogleGenAI({ apiKey: apiKey });
+// The API key must be obtained exclusively from the environment variable process.env.API_KEY
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const modelId = "gemini-3-flash-preview";
-const CACHE_PREFIX = 'wp_sentiment_v1_';
+const CACHE_PREFIX = 'wp_sentiment_v2_'; // Bumped version for new schema
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 Hours in milliseconds
 const RATE_LIMIT_STORAGE_KEY = 'wp_rate_limit_lock_until';
 const LAST_REQUEST_STORAGE_KEY = 'wp_last_api_req_ts';
@@ -67,6 +58,10 @@ const enforceGlobalThrottle = async () => {
 const sentimentSchema: Schema = {
   type: Type.OBJECT,
   properties: {
+    countryCode: {
+      type: Type.STRING,
+      description: "The 2-letter ISO 3166-1 alpha-2 country code (e.g. US, CN, FR, GB).",
+    },
     sentimentScore: {
       type: Type.NUMBER,
       description: "A score from -1.0 (very negative) to 1.0 (very positive) representing the overall news sentiment.",
@@ -91,7 +86,7 @@ const sentimentSchema: Schema = {
       description: "Top 5 most relevant and recent news headlines from the last 24 hours.",
     },
   },
-  required: ["sentimentScore", "stateSummary", "headlines"],
+  required: ["countryCode", "sentimentScore", "stateSummary", "headlines"],
 };
 
 const getRateLimitResponse = (countryName: string, waitSeconds: number): CountrySentimentData => {
@@ -148,7 +143,7 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
   }
 
   // 3. FETCH FROM API
-  if (!apiKey) {
+  if (!process.env.API_KEY) {
       console.error("[GeminiService] Aborting request: Missing API Key");
       return {
           countryName,
@@ -178,6 +173,7 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
       4. EXTRACT SOURCE DATA: For every headline, you MUST provide the 'source' name (e.g., CNN, Al Jazeera) and the 'url' to the article.
       5. Calculate an aggregated sentiment score (-1.0 to 1.0) based on these 5 stories.
       6. Provide a "State of the Nation" summary reflecting these recent events.
+      7. Provide the 2-letter ISO 3166-1 alpha-2 country code (e.g. US, CN, FR).
       
       If absolutely no news is found in the last 24h, you may look back 48h, but note this in the summary.
     `;
@@ -208,6 +204,7 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
 
     const result: CountrySentimentData = {
       countryName,
+      countryCode: data.countryCode,
       sentimentScore: data.sentimentScore,
       sentimentLabel,
       stateSummary: data.stateSummary,

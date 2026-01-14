@@ -112,13 +112,15 @@ function App() {
   };
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#020617] text-white selection:bg-indigo-500/30">
+    <div className="relative w-screen h-screen overflow-hidden bg-slate-50 text-slate-900 selection:bg-indigo-500/30">
       <Header 
         countries={countryList} 
-        onCountrySelect={handleCountrySelect} 
+        onCountrySelect={handleCountrySelect}
+        isPanelOpen={isPanelOpen} 
       />
       
-      <main className="w-full h-full pb-8">
+      {/* Removed pb-8 to allow map to be full height */}
+      <main className="w-full h-full">
         <WorldMap 
             geoData={geoData}
             onCountrySelect={handleCountrySelect} 

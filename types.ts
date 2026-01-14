@@ -14,6 +14,7 @@ export interface NewsHeadline {
 
 export interface CountrySentimentData {
   countryName: string;
+  countryCode?: string; // ISO 3166-1 alpha-2
   sentimentScore: number; // -1.0 to 1.0
   sentimentLabel: SentimentType;
   stateSummary: string;

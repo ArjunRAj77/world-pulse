@@ -10,11 +10,11 @@
         theme: {
           extend: {
             colors: {
-              'pulse-dark': '#0f172a',
-              'pulse-panel': '#1e293b',
+              'pulse-dark': '#f8fafc', /* Light Slate */
+              'pulse-panel': '#ffffff',
               'sentiment-positive': '#10b981',
               'sentiment-negative': '#ef4444',
-              'sentiment-neutral': '#64748b',
+              'sentiment-neutral': '#94a3b8',
             },
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
@@ -36,8 +36,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
       body {
-        background-color: #020617;
-        color: #e2e8f0;
+        background-color: #f0f9ff; /* Light Sky Blue */
+        color: #1e293b;
         overflow: hidden; /* Prevent scrolling, map handles it */
       }
       /* Custom scrollbar for panel */
@@ -45,17 +45,17 @@
         width: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: #1e293b;
+        background: #f1f5f9;
       }
       ::-webkit-scrollbar-thumb {
-        background: #475569;
+        background: #cbd5e1;
         border-radius: 3px;
       }
       .glass-panel {
-        background: rgba(30, 41, 59, 0.7);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-left: 1px solid rgba(255, 255, 255, 0.6);
       }
     </style>
   <script type="importmap">
@@ -82,7 +82,7 @@
         errDiv.style.color = '#ef4444';
         errDiv.style.padding = '20px';
         errDiv.style.fontFamily = 'monospace';
-        errDiv.style.background = '#1e293b';
+        errDiv.style.background = '#f1f5f9';
         errDiv.innerHTML = '<h3>Startup Error</h3><p>' + message + '</p><p>Check console for details.</p>';
         document.body.appendChild(errDiv);
     }
