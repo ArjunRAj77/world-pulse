@@ -106,6 +106,40 @@ const getRateLimitResponse = (countryName: string, waitSeconds: number): Country
     };
 };
 
+/**
+ * DEBUG FUNCTION: Verifies if the API key is active and working.
+ * Logs specific details to console to help with deployment debugging.
+ */
+export const validateApiKeyConnection = async (): Promise<{ success: boolean; message: string }> => {
+    if (!apiKey) {
+        console.error("❌ [GeminiService] No API Key found in environment variables.");
+        return { success: false, message: "Missing API Key" };
+    }
+
+    const maskedKey = apiKey.length > 5 
+        ? `${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 3)}` 
+        : "(Invalid Length)";
+
+    console.log(`ℹ️ [GeminiService] Testing Connection using Key: ${maskedKey}`);
+
+    try {
+        // Simple "ping" test using countTokens to avoid using a lot of quota
+        await ai.models.countTokens({
+            model: modelId,
+            contents: "System Check"
+        });
+        
+        console.log("✅ [GeminiService] Connection Successful! API is responding.");
+        return { success: true, message: "Connected" };
+    } catch (error: any) {
+        console.error("❌ [GeminiService] Connection Test Failed:", error);
+        return { 
+            success: false, 
+            message: error?.message || "Unknown API Error"
+        };
+    }
+};
+
 export const fetchCountrySentiment = async (countryName: string): Promise<CountrySentimentData> => {
   console.log(`[GeminiService] Requesting sentiment for: ${countryName}`);
 

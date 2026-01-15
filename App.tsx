@@ -3,9 +3,9 @@ import WorldMap from './components/WorldMap';
 import SidePanel from './components/SidePanel';
 import Header from './components/Header';
 import Footer from './components/Footer';
-import { fetchCountrySentiment, getCachedSentimentMap, preloadGlobalData, KEY_COUNTRIES } from './services/geminiService';
+import { fetchCountrySentiment, getCachedSentimentMap, preloadGlobalData, KEY_COUNTRIES, validateApiKeyConnection } from './services/geminiService';
 import { CountrySentimentData } from './types';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, WifiOff } from 'lucide-react';
 
 function App() {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -13,7 +13,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [geoData, setGeoData] = useState<any>(null);
-  const [configError, setConfigError] = useState(false);
+  const [configError, setConfigError] = useState<{isError: boolean, message: string}>({ isError: false, message: '' });
   
   // Stores the visual score for the map
   const [sentimentMap, setSentimentMap] = useState<Record<string, number>>({});
@@ -57,14 +57,19 @@ function App() {
   useEffect(() => {
     console.log("[App] Component Mounted");
     
-    // STARTUP CHECK: Ensure GEMINI_API_KEY is present
-    const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-    if (!envKey) {
-        console.error("[App] CRITICAL: GEMINI_API_KEY is missing in environment variables!");
-        setConfigError(true);
-    } else {
-        console.log("[App] API Key detected.");
-    }
+    // STARTUP CHECK: Verify API Connectivity
+    const runStartupChecks = async () => {
+        const result = await validateApiKeyConnection();
+        if (!result.success) {
+            setConfigError({
+                isError: true, 
+                message: result.message === "Missing API Key" 
+                    ? "GEMINI_API_KEY is missing from environment variables."
+                    : `API Connection Failed: ${result.message}`
+            });
+        }
+    };
+    runStartupChecks();
 
     // 1. Load any cached data immediately so the map isn't empty
     const cachedMap = getCachedSentimentMap();
@@ -123,10 +128,10 @@ function App() {
     <div className="relative w-screen h-screen overflow-hidden bg-slate-50 text-slate-900 selection:bg-indigo-500/30">
       
       {/* Configuration Error Banner */}
-      {configError && (
-        <div className="absolute top-0 left-0 w-full bg-red-600 text-white p-3 text-center text-sm font-bold z-[100] shadow-xl flex items-center justify-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-white animate-pulse" />
-            <span>CRITICAL: 'GEMINI_API_KEY' is missing from deployment environment. App cannot fetch live data.</span>
+      {configError.isError && (
+        <div className="absolute top-0 left-0 w-full bg-red-600 text-white p-3 text-center text-sm font-bold z-[100] shadow-xl flex items-center justify-center gap-2 animate-[fadeIn_0.5s_ease-out]">
+            {configError.message.includes("Missing") ? <AlertTriangle className="w-5 h-5 animate-pulse" /> : <WifiOff className="w-5 h-5" />}
+            <span>CRITICAL: {configError.message}</span>
         </div>
       )}
 
