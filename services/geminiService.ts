@@ -246,10 +246,18 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
 
   } catch (error: any) {
     const errorMessage = error?.message || "";
+    
+    // Check for Rate Limit (429)
     const isRateLimit = errorMessage.includes("429") || 
                         errorMessage.includes("quota") || 
                         errorMessage.includes("RESOURCE_EXHAUSTED") ||
                         error?.status === 429;
+
+    // Check for Permission/Auth Error (403/400) - Common in deployment (Referrer restrictions)
+    const isPermissionError = errorMessage.includes("403") || 
+                              errorMessage.includes("PERMISSION_DENIED") || 
+                              errorMessage.includes("API key not valid") ||
+                              errorMessage.includes("bad_request");
 
     if (isRateLimit) {
         setRateLimitLock(Date.now() + 60000); 
@@ -257,6 +265,26 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
     }
 
     console.error(`[GeminiService] Error fetching sentiment for ${countryName}:`, error);
+
+    // Return a specific helpful message for permission errors
+    if (isPermissionError) {
+        return {
+            countryName,
+            sentimentScore: 0,
+            sentimentLabel: SentimentType.NEGATIVE,
+            stateSummary: "ACCESS DENIED: Your API Key is being blocked by Google.",
+            headlines: [
+                { 
+                    title: "Deployment Configuration Error", 
+                    category: "BAD", 
+                    snippet: "The server rejected the API Key (Error 403). Please check Google Cloud Console > APIs & Services > Credentials > Application Restrictions. Ensure your deployment domain is allowed.", 
+                    source: "System", 
+                    url: "https://console.cloud.google.com/apis/credentials" 
+                }
+            ],
+            lastUpdated: Date.now(),
+        };
+    }
 
     return {
       countryName,
