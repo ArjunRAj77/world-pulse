@@ -5,6 +5,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import { fetchCountrySentiment, getCachedSentimentMap, preloadGlobalData, KEY_COUNTRIES } from './services/geminiService';
 import { CountrySentimentData } from './types';
+import { AlertTriangle } from 'lucide-react';
 
 function App() {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -12,6 +13,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [geoData, setGeoData] = useState<any>(null);
+  const [configError, setConfigError] = useState(false);
   
   // Stores the visual score for the map
   const [sentimentMap, setSentimentMap] = useState<Record<string, number>>({});
@@ -54,8 +56,14 @@ function App() {
 
   useEffect(() => {
     console.log("[App] Component Mounted");
-    if (!process.env.API_KEY) {
-        console.error("[App] CRITICAL: process.env.API_KEY is missing! The app will fail to fetch data.");
+    
+    // STARTUP CHECK: Ensure GEMINI_API_KEY is present
+    const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    if (!envKey) {
+        console.error("[App] CRITICAL: GEMINI_API_KEY is missing in environment variables!");
+        setConfigError(true);
+    } else {
+        console.log("[App] API Key detected.");
     }
 
     // 1. Load any cached data immediately so the map isn't empty
@@ -79,7 +87,7 @@ function App() {
         // Update Footer State
         setLastGlobalUpdate(data.lastUpdated);
         
-        // Update Count (ensure we don't double count if we already had it, but simpler to just increment for "activity")
+        // Update Count
         setLoadedCount(prev => Math.min(prev + 1, KEY_COUNTRIES.length));
     });
 
@@ -92,7 +100,7 @@ function App() {
     setIsLoading(true);
     setSentimentData(null);
 
-    // Fetch real data from Gemini (Service handles 24h caching)
+    // Fetch real data from Gemini
     const data = await fetchCountrySentiment(countryName);
     
     setSentimentData(data);
@@ -113,13 +121,21 @@ function App() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-50 text-slate-900 selection:bg-indigo-500/30">
+      
+      {/* Configuration Error Banner */}
+      {configError && (
+        <div className="absolute top-0 left-0 w-full bg-red-600 text-white p-3 text-center text-sm font-bold z-[100] shadow-xl flex items-center justify-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-white animate-pulse" />
+            <span>CRITICAL: 'GEMINI_API_KEY' is missing from deployment environment. App cannot fetch live data.</span>
+        </div>
+      )}
+
       <Header 
         countries={countryList} 
         onCountrySelect={handleCountrySelect}
         isPanelOpen={isPanelOpen} 
       />
       
-      {/* Removed pb-8 to allow map to be full height */}
       <main className="w-full h-full">
         <WorldMap 
             geoData={geoData}
