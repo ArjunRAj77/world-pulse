@@ -42,6 +42,25 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
     return () => resizeObserver.disconnect();
   }, []);
 
+  // Helper to determine color based on score
+  // Matches thresholds in geminiService (0.2 / -0.2)
+  const getFillColor = (score: number | undefined) => {
+      if (score === undefined) return '#1e293b'; // Default Land (Slate 800)
+      
+      if (score > 0.2) {
+          // Positive: Interpolate to Emerald 500
+          // Amplify score for visibility
+          return d3.interpolateRgb("#1e293b", "#10b981")(Math.min(1, score * 1.5)); 
+      }
+      if (score < -0.2) {
+          // Negative: Interpolate to Red 500
+          return d3.interpolateRgb("#1e293b", "#ef4444")(Math.min(1, Math.abs(score) * 1.5));
+      }
+      
+      // Neutral (-0.2 to 0.2): Amber 600 (distinct from land, matches Amber palette)
+      return '#d97706'; 
+  };
+
   // 2. Initialize and Draw Map
   useEffect(() => {
     if (!geoData || !svgRef.current || dimensions.width === 0 || dimensions.height === 0) return;
@@ -56,14 +75,12 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
     const g = svg.append('g');
     gRef.current = g;
 
-    // Filter out Antarctica for the layout calculation to prevent infinite stretching in Mercator
-    // and to allow the rest of the world to fill the screen nicely.
+    // Filter out Antarctica
     const featuresWithoutAntarctica = {
         type: "FeatureCollection",
         features: geoData.features.filter((f: any) => f.properties.name !== "Antarctica")
     };
 
-    // Projection Setup - Mercator for flat look
     const projection = d3.geoMercator()
       .fitExtent([[20, 20], [width - 20, height - 20]], featuresWithoutAntarctica as any);
     
@@ -87,24 +104,22 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
 
     // --- DRAWING ORDER ---
 
-    // 1. Ocean Background (Rectangular for Mercator)
-    // Instead of a sphere path, we just fill the group background or use a large rect
-    // But since we want to zoom the "ocean" with the map, we can use the Graticule outline or just a big rect
+    // 1. Ocean
     g.append('rect')
       .attr('x', -width * 2)
       .attr('y', -height * 2)
       .attr('width', width * 5)
       .attr('height', height * 5)
-      .attr('fill', '#e0f2fe') // Light blue ocean
+      .attr('fill', '#0f172a') // Slate 900
       .attr('stroke', 'none');
 
-    // 2. Graticules (Grid Lines)
+    // 2. Graticules
     g.append('path')
       .datum(graticule)
       .attr('class', 'graticule')
       .attr('d', pathGenerator as any)
       .attr('fill', 'none')
-      .attr('stroke', '#94a3b8') // Slate 400
+      .attr('stroke', '#334155')
       .attr('stroke-width', 0.5)
       .attr('stroke-opacity', 0.3);
 
@@ -115,16 +130,17 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
     paths.enter()
       .append('path')
       .attr('class', 'country-block')
-      .attr('fill', '#ffffff') // Clean white default
-      .attr('stroke', '#cbd5e1') // Slate 300 borders
+      .attr('fill', '#1e293b') // Default Land
+      .attr('stroke', '#334155')
       .attr('stroke-width', 0.5)
       .style('cursor', 'pointer')
       .attr('d', pathGenerator as any)
       .on('mouseover', function(event, d: any) {
         const sel = d3.select(this);
         sel.raise();
-        sel.transition().duration(200).attr('fill', '#f1f5f9'); // Highlight on hover
-        sel.attr('stroke', '#64748b').attr('stroke-width', 1 / (d3.zoomTransform(svg.node()!).k || 1));
+        // Removed fill transition to keep sentiment color
+        // Only highlight stroke
+        sel.attr('stroke', '#f8fafc').attr('stroke-width', 1.5 / (d3.zoomTransform(svg.node()!).k || 1));
         
         if (tooltipRef.current) {
             tooltipRef.current.style.opacity = '1';
@@ -141,14 +157,12 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       })
       .on('mouseout', function(event, d: any) {
         const sel = d3.select(this);
-        sel.attr('stroke', '#cbd5e1').attr('stroke-width', 0.5 / (d3.zoomTransform(svg.node()!).k || 1));
+        sel.attr('stroke', '#334155').attr('stroke-width', 0.5 / (d3.zoomTransform(svg.node()!).k || 1));
         
-        const sentimentScore = sentimentMap[d.properties.name] ?? 0;
-        let fillColor = '#ffffff';
-        if (sentimentScore > 0.1) fillColor = d3.interpolateRgb("#ffffff", "#34d399")(sentimentScore * 1.5);
-        if (sentimentScore < -0.1) fillColor = d3.interpolateRgb("#ffffff", "#f87171")(Math.abs(sentimentScore) * 1.5);
-        
-        sel.transition().duration(200).attr('fill', fillColor);
+        // Ensure color consistency
+        const score = sentimentMap[d.properties.name];
+        const fillColor = getFillColor(score);
+        sel.attr('fill', fillColor);
 
         if (tooltipRef.current) {
             tooltipRef.current.style.opacity = '0';
@@ -159,7 +173,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
         onCountrySelect(d.properties.name);
       });
 
-    // Initial Zoom (1.0x - Mercator fills the space well by default with fitExtent)
+    // Initial Zoom
     if (!selectedCountry) {
         const initialTransform = d3.zoomIdentity;
         svg.call(zoom.transform, initialTransform);
@@ -171,20 +185,16 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
   useEffect(() => {
     if (!gRef.current || !sentimentMap) return;
 
-    const getFillColor = (name: string) => {
-      const score = sentimentMap[name] ?? 0;
-      if (score > 0.1) return d3.interpolateRgb("#ffffff", "#34d399")(score * 1.5);
-      if (score < -0.1) return d3.interpolateRgb("#ffffff", "#f87171")(Math.abs(score) * 1.5);
-      return "#ffffff";
-    };
-
     gRef.current.selectAll('.country-block')
       .transition()
       .duration(700)
-      .attr('fill', (d: any) => getFillColor(d.properties.name))
+      .attr('fill', (d: any) => getFillColor(sentimentMap[d.properties.name]))
       .attr('class', (d: any) => {
-          const score = sentimentMap[d.properties.name] ?? 0;
-          return Math.abs(score) > 0.2 ? 'country-block animate-pulse-sentiment' : 'country-block';
+          const score = sentimentMap[d.properties.name];
+          // Pulse if significant sentiment
+          return (score !== undefined && Math.abs(score) > 0.2) 
+            ? 'country-block animate-pulse-sentiment' 
+            : 'country-block';
       });
 
   }, [sentimentMap, geoData, dimensions]);
@@ -227,12 +237,12 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
   };
 
   return (
-    <div ref={containerRef} className="w-full h-full bg-[#f0f9ff] relative overflow-hidden">
+    <div ref={containerRef} className="w-full h-full bg-[#020617] relative overflow-hidden">
         {/* Simple Flat Background */}
-        <div className="absolute inset-0 z-0 bg-sky-50 opacity-60 pointer-events-none" />
+        <div className="absolute inset-0 z-0 bg-slate-950 opacity-100 pointer-events-none" />
 
         {!geoData && (
-             <div className="absolute inset-0 flex items-center justify-center text-slate-400 z-20">
+             <div className="absolute inset-0 flex items-center justify-center text-slate-500 z-20">
                 <span className="animate-pulse tracking-widest font-mono text-sm">INITIALIZING GEO-GRID...</span>
              </div>
         )}
@@ -244,7 +254,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
                 e.stopPropagation();
                 handleReset();
             }}
-            className="absolute bottom-20 right-6 bg-white/90 backdrop-blur p-2.5 rounded-full shadow-lg border border-slate-200 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all z-20 hover:scale-110 active:scale-95"
+            className="absolute bottom-20 right-6 bg-slate-800/90 backdrop-blur p-2.5 rounded-full shadow-lg border border-slate-700 text-slate-400 hover:text-indigo-400 hover:bg-slate-700 transition-all z-20 hover:scale-110 active:scale-95"
             title="Reset to World View"
         >
             <Home className="w-5 h-5" />
@@ -252,13 +262,13 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
 
         <div 
             ref={tooltipRef}
-            className="fixed pointer-events-none bg-white/95 border border-slate-200 text-slate-800 text-xs font-bold px-3 py-2 rounded shadow-xl z-50 backdrop-blur opacity-0 transition-opacity duration-150 uppercase tracking-widest whitespace-nowrap"
+            className="fixed pointer-events-none bg-slate-900/95 border border-slate-700 text-slate-200 text-xs font-bold px-3 py-2 rounded shadow-xl z-50 backdrop-blur opacity-0 transition-opacity duration-150 uppercase tracking-widest whitespace-nowrap"
         />
         
         <style>{`
             @keyframes pulseBrightness {
                 0%, 100% { filter: brightness(1); }
-                50% { filter: brightness(0.95); }
+                50% { filter: brightness(1.2); }
             }
             .animate-pulse-sentiment {
                 animation: pulseBrightness 3s ease-in-out infinite;

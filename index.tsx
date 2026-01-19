@@ -2,7 +2,7 @@ import React, { ErrorInfo, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-console.log("[System] Initializing WorldPulse...");
+console.log("[System] Initializing GeoPulse...");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -36,8 +36,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       return (
         <div style={{ padding: '2rem', color: '#ef4444', background: '#020617', height: '100vh', fontFamily: 'monospace' }}>
           <h1 className="text-2xl font-bold mb-4">System Critical Failure</h1>
-          <p className="mb-4">The application encountered an unexpected error.</p>
-          <div className="bg-slate-900 p-4 rounded border border-red-900 overflow-auto">
+          <p className="mb-4 text-slate-400">The application encountered an unexpected error.</p>
+          <div className="bg-slate-900 p-4 rounded border border-red-900 overflow-auto text-red-300">
             {this.state.error?.toString()}
           </div>
           <button 

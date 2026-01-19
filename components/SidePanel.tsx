@@ -43,17 +43,17 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
 
   const getSentimentColor = (label?: SentimentType) => {
     switch (label) {
-      case SentimentType.POSITIVE: return 'text-emerald-700 border-emerald-200 bg-emerald-50';
-      case SentimentType.NEGATIVE: return 'text-red-700 border-red-200 bg-red-50';
-      default: return 'text-slate-600 border-slate-200 bg-slate-50';
+      case SentimentType.POSITIVE: return 'text-emerald-400 border-emerald-900 bg-emerald-950/30';
+      case SentimentType.NEGATIVE: return 'text-red-400 border-red-900 bg-red-950/30';
+      default: return 'text-amber-400 border-amber-900 bg-amber-950/30';
     }
   };
 
   const getSentimentIcon = (label?: SentimentType) => {
     switch (label) {
-      case SentimentType.POSITIVE: return <TrendingUp className="w-6 h-6 text-emerald-600" />;
-      case SentimentType.NEGATIVE: return <TrendingDown className="w-6 h-6 text-red-600" />;
-      default: return <Minus className="w-6 h-6 text-slate-400" />;
+      case SentimentType.POSITIVE: return <TrendingUp className="w-6 h-6 text-emerald-400" />;
+      case SentimentType.NEGATIVE: return <TrendingDown className="w-6 h-6 text-red-400" />;
+      default: return <Minus className="w-6 h-6 text-amber-400" />;
     }
   };
 
@@ -67,27 +67,27 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
 
   return (
     <div className={clsx(
-      "absolute top-0 right-0 h-full w-full md:w-[450px] transition-transform duration-300 ease-out transform glass-panel text-slate-800 shadow-2xl flex flex-col",
+      "absolute top-0 right-0 h-full w-full md:w-[450px] transition-transform duration-300 ease-out transform glass-panel text-slate-200 shadow-2xl flex flex-col",
       "z-[60]", // Increased z-index to overlay header on mobile
       isOpen ? "translate-x-0" : "translate-x-full"
     )}>
       {/* Header */}
-      <div className="p-6 border-b border-slate-200/50 flex justify-between items-center bg-white/50">
+      <div className="p-6 border-b border-slate-700/50 flex justify-between items-center bg-slate-900/50">
         <div className="flex items-center gap-3">
             {data?.countryCode && !isLoading && (
                 <img 
                     src={`https://flagcdn.com/w80/${data.countryCode.toLowerCase()}.png`}
                     alt={`${countryName} flag`}
-                    className="w-10 h-auto rounded shadow-sm border border-slate-200"
+                    className="w-10 h-auto rounded shadow-sm border border-slate-600"
                 />
             )}
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-100 flex items-center gap-2">
             {countryName || 'Select Country'}
             </h2>
         </div>
         <button 
           onClick={onClose}
-          className="p-2 rounded-full hover:bg-slate-200/50 transition-colors text-slate-500 hover:text-slate-800"
+          className="p-2 rounded-full hover:bg-slate-800 transition-colors text-slate-500 hover:text-slate-200"
         >
           <X className="w-6 h-6" />
         </button>
@@ -96,21 +96,21 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-8 relative">
         {isLoading ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center space-y-8 bg-white/40 backdrop-blur-sm">
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center space-y-8 bg-slate-900/40 backdrop-blur-sm">
              <div className="relative">
-                <div className="absolute inset-0 bg-indigo-100 rounded-full blur-xl animate-pulse"></div>
-                <Loader2 className="w-12 h-12 text-indigo-600 animate-spin relative z-10" />
+                <div className="absolute inset-0 bg-indigo-500/20 rounded-full blur-xl animate-pulse"></div>
+                <Loader2 className="w-12 h-12 text-indigo-500 animate-spin relative z-10" />
              </div>
              
              <div className="space-y-4 max-w-sm animate-[fadeIn_0.5s_ease-out]">
-                <div className="flex items-center justify-center gap-2 text-indigo-600 font-bold tracking-widest text-xs uppercase mb-2">
+                <div className="flex items-center justify-center gap-2 text-indigo-400 font-bold tracking-widest text-xs uppercase mb-2">
                     <Lightbulb className="w-4 h-4" />
                     <span>Did you know?</span>
                 </div>
-                <p className="text-slate-700 text-lg font-medium leading-relaxed italic">
+                <p className="text-slate-300 text-lg font-medium leading-relaxed italic">
                     "{currentFact}"
                 </p>
-                <div className="pt-4 text-xs text-slate-400 font-mono">
+                <div className="pt-4 text-xs text-slate-500 font-mono">
                     ANALYZING REGIONAL DATA...
                 </div>
              </div>
@@ -127,18 +127,18 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
                     </span>
                  </div>
                  {isCached && (
-                    <div className="flex items-center gap-1 text-[10px] text-slate-500 bg-white/50 px-2 py-1 rounded-full border border-slate-200">
+                    <div className="flex items-center gap-1 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-full border border-slate-700">
                         <Database className="w-3 h-3" />
                         <span>CACHED</span>
                     </div>
                  )}
               </div>
-              <p className="text-sm opacity-90 leading-relaxed font-normal">
+              <p className="text-sm opacity-90 leading-relaxed font-normal text-slate-300">
                 {data.stateSummary}
               </p>
               
               {/* Score Indicator */}
-              <div className="mt-4 flex items-center justify-between text-xs font-mono uppercase opacity-75">
+              <div className="mt-4 flex items-center justify-between text-xs font-mono uppercase opacity-75 text-slate-400">
                 <div className="flex items-center gap-2">
                     <Activity className="w-4 h-4" />
                     <span>Score: {data.sentimentScore.toFixed(2)}</span>
@@ -152,43 +152,43 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
 
             {/* Headlines Section */}
             <div className="animate-[fadeIn_0.7s_ease-out]">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
                 <Newspaper className="w-5 h-5 text-indigo-500" />
                 Latest Headlines (24h)
               </h3>
               
               <div className="space-y-4">
                 {data.headlines.map((news, idx) => (
-                  <div key={idx} className="bg-white hover:bg-slate-50 transition-colors p-4 rounded-lg border border-slate-200 shadow-sm group relative">
+                  <div key={idx} className="bg-slate-800/50 hover:bg-slate-800 transition-colors p-4 rounded-lg border border-slate-700 shadow-sm group relative">
                     <div className="flex justify-between items-start gap-4 mb-2">
                         <a 
                            href={news.url || '#'} 
                            target="_blank" 
                            rel="noopener noreferrer"
-                           className="text-slate-800 font-bold leading-snug group-hover:text-indigo-600 transition-colors flex gap-2 items-start"
+                           className="text-slate-200 font-bold leading-snug group-hover:text-indigo-400 transition-colors flex gap-2 items-start"
                         >
                             {news.title}
                             {news.url && <ExternalLink className="w-3 h-3 opacity-40 flex-shrink-0 mt-1" />}
                         </a>
                         <span className={clsx(
                             "text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider min-w-fit",
-                            news.category === 'GOOD' ? 'bg-emerald-100 text-emerald-700' :
-                            news.category === 'BAD' ? 'bg-red-100 text-red-700' :
-                            'bg-slate-100 text-slate-600'
+                            news.category === 'GOOD' ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900' :
+                            news.category === 'BAD' ? 'bg-red-950/50 text-red-400 border border-red-900' :
+                            'bg-amber-950/30 text-amber-400 border border-amber-900/50'
                         )}>
                             {news.category}
                         </span>
                     </div>
                     
-                    <p className="text-sm text-slate-500 mb-3 font-normal leading-relaxed">
+                    <p className="text-sm text-slate-400 mb-3 font-normal leading-relaxed">
                       {news.snippet}
                     </p>
 
                     {/* Source Attribution */}
                     {news.source && (
-                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono uppercase border-t border-slate-100 pt-2">
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono uppercase border-t border-slate-700/50 pt-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
-                            SOURCE: <span className="text-slate-600">{news.source}</span>
+                            SOURCE: <span className="text-slate-400">{news.source}</span>
                         </div>
                     )}
                   </div>
@@ -197,14 +197,14 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
             </div>
           </>
         ) : (
-          <div className="text-center text-slate-400 mt-20">
+          <div className="text-center text-slate-500 mt-20">
             <p>Select a region on the map to analyze its pulse.</p>
           </div>
         )}
       </div>
       
       {/* Footer */}
-      <div className="p-4 border-t border-slate-200 text-center text-xs text-slate-400 font-mono">
+      <div className="p-4 border-t border-slate-700/50 text-center text-xs text-slate-500 font-mono">
         POWERED BY GEMINI 3 FLASH & GOOGLE SEARCH
       </div>
       

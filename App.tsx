@@ -125,11 +125,11 @@ function App() {
   };
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-slate-50 text-slate-900 selection:bg-indigo-500/30">
+    <div className="relative w-screen h-screen overflow-hidden bg-slate-950 text-slate-100 selection:bg-indigo-500/30">
       
       {/* Configuration Error Banner */}
       {configError.isError && (
-        <div className="absolute top-0 left-0 w-full bg-red-600 text-white p-3 text-center text-sm font-bold z-[100] shadow-xl flex items-center justify-center gap-2 animate-[fadeIn_0.5s_ease-out]">
+        <div className="absolute top-0 left-0 w-full bg-red-900/90 text-white p-3 text-center text-sm font-bold z-[100] shadow-xl flex items-center justify-center gap-2 animate-[fadeIn_0.5s_ease-out] backdrop-blur-md">
             {configError.message.includes("Missing") ? <AlertTriangle className="w-5 h-5 animate-pulse" /> : <WifiOff className="w-5 h-5" />}
             <span>CRITICAL: {configError.message}</span>
         </div>
