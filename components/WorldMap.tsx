@@ -43,13 +43,11 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
   }, []);
 
   // Helper to determine color based on score
-  // Matches thresholds in geminiService (0.2 / -0.2)
   const getFillColor = (score: number | undefined) => {
       if (score === undefined) return '#1e293b'; // Default Land (Slate 800)
       
       if (score > 0.2) {
           // Positive: Interpolate to Emerald 500
-          // Amplify score for visibility
           return d3.interpolateRgb("#1e293b", "#10b981")(Math.min(1, score * 1.5)); 
       }
       if (score < -0.2) {
@@ -57,7 +55,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
           return d3.interpolateRgb("#1e293b", "#ef4444")(Math.min(1, Math.abs(score) * 1.5));
       }
       
-      // Neutral (-0.2 to 0.2): Amber 600 (distinct from land, matches Amber palette)
+      // Neutral (-0.2 to 0.2): Amber 600
       return '#d97706'; 
   };
 
@@ -130,7 +128,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
     paths.enter()
       .append('path')
       .attr('class', 'country-block')
-      .attr('fill', '#1e293b') // Default Land
+      .attr('fill', '#1e293b') // Initial Default Land
       .attr('stroke', '#334155')
       .attr('stroke-width', 0.5)
       .style('cursor', 'pointer')
@@ -138,8 +136,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       .on('mouseover', function(event, d: any) {
         const sel = d3.select(this);
         sel.raise();
-        // Removed fill transition to keep sentiment color
-        // Only highlight stroke
+        // ONLY highlight stroke (border), DO NOT change fill
         sel.attr('stroke', '#f8fafc').attr('stroke-width', 1.5 / (d3.zoomTransform(svg.node()!).k || 1));
         
         if (tooltipRef.current) {
@@ -157,12 +154,11 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       })
       .on('mouseout', function(event, d: any) {
         const sel = d3.select(this);
+        // Reset Stroke only
         sel.attr('stroke', '#334155').attr('stroke-width', 0.5 / (d3.zoomTransform(svg.node()!).k || 1));
         
-        // Ensure color consistency
-        const score = sentimentMap[d.properties.name];
-        const fillColor = getFillColor(score);
-        sel.attr('fill', fillColor);
+        // DO NOT reset fill here using stale state. 
+        // Let the 'Update Colors' useEffect handle fill maintenance.
 
         if (tooltipRef.current) {
             tooltipRef.current.style.opacity = '0';
