@@ -1,0 +1,51 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for schema validation
+    function isScoreValid() {
+      return request.resource.data.sentimentScore is number 
+             && request.resource.data.sentimentScore >= -1.0 
+             && request.resource.data.sentimentScore <= 1.0;
+    }
+
+    function hasMandatoryFields() {
+      return request.resource.data.keys().hasAll(['countryName', 'sentimentScore', 'sentimentLabel', 'lastUpdated']);
+    }
+
+    function isTimestampValid() {
+      // Prevent future-dating or setting extremely old dates
+      return request.resource.data.lastUpdated is number 
+             && request.resource.data.lastUpdated > 0;
+    }
+
+    // 1. LATEST SENTIMENTS COLLECTION
+    // Public Read. Write only if schema is valid.
+    match /latest_sentiments/{country} {
+      allow read: if true;
+      allow create, update: if hasMandatoryFields() 
+                           && isScoreValid() 
+                           && isTimestampValid();
+      // Deny delete to prevent malicious wiping
+      allow delete: if false; 
+    }
+
+    // 2. DAILY ARCHIVE COLLECTION
+    // Public Read. Write only if schema is valid.
+    match /daily_archive/{document} {
+      allow read: if true;
+      allow create: if hasMandatoryFields() 
+                    && isScoreValid()
+                    && request.resource.data.keys().hasAll(['archivedDate']);
+      // Archive should be immutable after creation
+      allow update, delete: if false;
+    }
+
+    // 3. CONNECTION TEST COLLECTION
+    // Used for the "Test Connection" feature in the UI
+    match /_connection_test_/{doc} {
+      allow read, write: if true; 
+    }
+  }
+}

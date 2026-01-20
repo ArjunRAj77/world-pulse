@@ -1,6 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
-import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink, Ban } from 'lucide-react';
-import { CountrySentimentData, SentimentType } from '../types';
+import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink, Ban, History, ChevronDown, ChevronUp } from 'lucide-react';
+import { CountrySentimentData, SentimentType, HistoricalPoint } from '../types';
+import { getCountryHistory } from '../services/db';
+import TrendChart from './TrendChart';
 import clsx from 'clsx';
 
 interface SidePanelProps {
@@ -32,6 +35,11 @@ const FUN_FACTS = [
 
 const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading, countryName, error }) => {
   const [currentFact, setCurrentFact] = useState(FUN_FACTS[0]);
+  const [history, setHistory] = useState<HistoricalPoint[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  
+  // Collapse state for the history chart
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading) return;
@@ -41,6 +49,21 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
     }, 4000); 
     return () => clearInterval(interval);
   }, [isLoading]);
+
+  // Fetch History when data loads
+  useEffect(() => {
+    if (countryName && data) {
+        setLoadingHistory(true);
+        // Reset collapse state when viewing a new country
+        setIsHistoryOpen(false);
+        getCountryHistory(countryName).then(points => {
+            setHistory(points);
+            setLoadingHistory(false);
+        });
+    } else {
+        setHistory([]);
+    }
+  }, [countryName, data]);
 
   const getSentimentColor = (label?: SentimentType) => {
     switch (label) {
@@ -103,7 +126,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 relative">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 relative">
         {isLoading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center space-y-8 bg-slate-900/40 backdrop-blur-sm">
              <div className="relative">
@@ -169,6 +192,43 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
                   <Activity className="w-4 h-4" />
                   <span>AI Confidence Score: {data.sentimentScore.toFixed(2)}</span>
               </div>
+            </div>
+
+            {/* HISTORICAL TIMELINE SECTION (Collapsible) */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden animate-[fadeIn_0.6s_ease-out]">
+                 <button 
+                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-slate-800/50 transition-colors"
+                 >
+                     <div className="flex items-center gap-2">
+                         <History className="w-4 h-4 text-indigo-400" />
+                         <h3 className="text-sm font-semibold text-slate-300">
+                             Historical Timeline
+                         </h3>
+                     </div>
+                     <div className="flex items-center gap-2">
+                         {loadingHistory && <Loader2 className="w-3 h-3 animate-spin text-slate-500" />}
+                         {isHistoryOpen ? 
+                            <ChevronUp className="w-4 h-4 text-slate-500" /> : 
+                            <ChevronDown className="w-4 h-4 text-slate-500" />
+                         }
+                     </div>
+                 </button>
+                 
+                 {isHistoryOpen && (
+                     <div className="px-4 pb-4 animate-[fadeIn_0.3s_ease-out]">
+                         {history.length > 0 || !loadingHistory ? (
+                             <TrendChart data={history} currentScore={data.sentimentScore} />
+                         ) : (
+                             <div className="h-[120px] flex items-center justify-center text-xs text-slate-500 italic">
+                                 No historical data available yet.
+                             </div>
+                         )}
+                         <p className="text-[10px] text-slate-500 text-center mt-2 pt-2 border-t border-slate-800/50">
+                             Tracks volatility and stability trends over the last 30 days.
+                         </p>
+                     </div>
+                 )}
             </div>
 
             {/* Headlines Section */}

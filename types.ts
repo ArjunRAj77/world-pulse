@@ -1,3 +1,4 @@
+
 export enum SentimentType {
   POSITIVE = 'POSITIVE',
   NEGATIVE = 'NEGATIVE',
@@ -20,6 +21,12 @@ export interface CountrySentimentData {
   stateSummary: string;
   headlines: NewsHeadline[];
   lastUpdated: number;
+}
+
+export interface HistoricalPoint {
+  date: string; // ISO Date YYYY-MM-DD
+  score: number;
+  timestamp: number;
 }
 
 export interface MapFeature {

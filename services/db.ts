@@ -1,6 +1,7 @@
+
 import { db, isFirebaseConfigured } from './firebaseConfig';
-import { doc, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
-import { CountrySentimentData } from '../types';
+import { doc, getDoc, setDoc, getDocs, collection, query, where, limit, orderBy } from 'firebase/firestore';
+import { CountrySentimentData, HistoricalPoint } from '../types';
 
 // Collections
 const LATEST_COLLECTION = 'latest_sentiments';
@@ -87,6 +88,40 @@ export const getCountryData = async (countryName: string): Promise<CountrySentim
       console.error(`[DB-Firestore] READ ERROR for ${countryName}:`, e);
       return undefined;
   }
+};
+
+export const getCountryHistory = async (countryName: string): Promise<HistoricalPoint[]> => {
+    if (!isFirebaseConfigured) return [];
+
+    try {
+        // We query by countryName. 
+        // NOTE: Ideally we would use orderBy('lastUpdated'), but that requires a composite index.
+        // For simplicity in this beta, we fetch all for country (usually small < 365) and sort in JS.
+        const q = query(
+            collection(db, ARCHIVE_COLLECTION),
+            where("countryName", "==", countryName)
+        );
+
+        const querySnapshot = await getDocs(q);
+        const history: HistoricalPoint[] = [];
+
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.sentimentScore !== undefined && data.lastUpdated) {
+                history.push({
+                    date: data.archivedDate || new Date(data.lastUpdated).toISOString().split('T')[0],
+                    score: data.sentimentScore,
+                    timestamp: data.lastUpdated
+                });
+            }
+        });
+
+        // Sort ascending by time
+        return history.sort((a, b) => a.timestamp - b.timestamp);
+    } catch (e) {
+        console.error(`[DB-Firestore] HISTORY ERROR for ${countryName}:`, e);
+        return [];
+    }
 };
 
 export const getAllCountryData = async (): Promise<CountrySentimentData[]> => {
