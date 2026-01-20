@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import WorldMap from './components/WorldMap';
 import SidePanel from './components/SidePanel';
@@ -413,7 +414,7 @@ function App() {
         <div className="fixed inset-0 z-[80] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
             <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-lg w-full relative overflow-hidden animate-[fadeIn_0.3s_ease-out]">
                 {/* Decorative Elements */}
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-500"></div>
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500"></div>
                 <div className="absolute -top-10 -right-10 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl"></div>
                 
                 <div className="p-8">
@@ -452,8 +453,8 @@ function App() {
                                 <span className="text-red-200">Negative Sentiment (Conflict/Unrest)</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs">
-                                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                                <span className="text-amber-200">Neutral/Mixed Outlook</span>
+                                <span className="w-2 h-2 rounded-full bg-sky-500"></span>
+                                <span className="text-sky-200">Neutral/Mixed Outlook</span>
                             </div>
                         </div>
                     </div>

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { Home } from 'lucide-react';
@@ -55,8 +56,8 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
           return d3.interpolateRgb("#1e293b", "#ef4444")(Math.min(1, Math.abs(score) * 1.5));
       }
       
-      // Neutral (-0.2 to 0.2): Amber 600
-      return '#d97706'; 
+      // Neutral (-0.2 to 0.2): Sky 500 (Light Blue)
+      return '#0ea5e9'; 
   };
 
   // 2. Initialize and Draw Map

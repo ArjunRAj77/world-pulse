@@ -69,7 +69,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
     switch (label) {
       case SentimentType.POSITIVE: return 'text-emerald-400 border-emerald-900 bg-emerald-950/30';
       case SentimentType.NEGATIVE: return 'text-red-400 border-red-900 bg-red-950/30';
-      default: return 'text-amber-400 border-amber-900 bg-amber-950/30';
+      default: return 'text-sky-400 border-sky-900 bg-sky-950/30';
     }
   };
 
@@ -77,7 +77,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
     switch (label) {
       case SentimentType.POSITIVE: return <TrendingUp className="w-6 h-6 text-emerald-400" />;
       case SentimentType.NEGATIVE: return <TrendingDown className="w-6 h-6 text-red-400" />;
-      default: return <Minus className="w-6 h-6 text-amber-400" />;
+      default: return <Minus className="w-6 h-6 text-sky-400" />;
     }
   };
 
@@ -255,7 +255,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
                             "text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider min-w-fit",
                             news.category === 'GOOD' ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900' :
                             news.category === 'BAD' ? 'bg-red-950/50 text-red-400 border border-red-900' :
-                            'bg-amber-950/30 text-amber-400 border border-amber-900/50'
+                            'bg-sky-950/30 text-sky-400 border border-sky-900/50'
                         )}>
                             {news.category}
                         </span>

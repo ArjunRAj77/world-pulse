@@ -65,7 +65,7 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, currentScore }) => {
         .attr("y2", "100%");
     
     areaGradient.append("stop").attr("offset", "0%").attr("stop-color", "#10b981").attr("stop-opacity", 0.3); // Top Green
-    areaGradient.append("stop").attr("offset", "50%").attr("stop-color", "#fbbf24").attr("stop-opacity", 0.1); // Mid Amber
+    areaGradient.append("stop").attr("offset", "50%").attr("stop-color", "#38bdf8").attr("stop-opacity", 0.1); // Mid Sky 400
     areaGradient.append("stop").attr("offset", "100%").attr("stop-color", "#ef4444").attr("stop-opacity", 0.3); // Bot Red
 
     // 4. Draw Axes
@@ -126,7 +126,7 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, currentScore }) => {
         .attr("cx", d => x(new Date(d.timestamp)))
         .attr("cy", d => y(d.score))
         .attr("r", 3)
-        .attr("fill", d => d.score > 0 ? "#10b981" : d.score < 0 ? "#ef4444" : "#fbbf24")
+        .attr("fill", d => d.score > 0 ? "#10b981" : d.score < 0 ? "#ef4444" : "#38bdf8") // Sky Blue for neutral
         .attr("stroke", "#0f172a")
         .attr("stroke-width", 1);
 

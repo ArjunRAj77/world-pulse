@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Radar, Search, Command, X } from 'lucide-react';
 import clsx from 'clsx';
@@ -145,7 +146,7 @@ const Header: React.FC<HeaderProps> = ({ countries, onCountrySelect, isPanelOpen
                 <span>CRITICAL</span>
             </div>
             <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></span>
+                <span className="w-3 h-3 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.5)]"></span>
                 <span>NEUTRAL</span>
             </div>
             <div className="flex items-center gap-2">

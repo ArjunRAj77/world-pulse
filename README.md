@@ -37,7 +37,7 @@ Prevent malicious data injection or database wiping.
 
 - **Interactive World Map**: A fully responsive D3.js vector map allowing exploration of 180+ countries.
 - **Real-Time AI Analysis**: Instantly generates concise geopolitical summaries using Gemini 3 Flash.
-- **Sentiment Heatmap**: Visualizes global stability with dynamic color coding (Emerald/Amber/Red).
+- **Sentiment Heatmap**: Visualizes global stability with dynamic color coding (Emerald/Blue/Red).
 - **Historical Timeline**: Visualizes sentiment trends over the last 30 days.
 - **Live News Feed**: Fetches and categorizes the latest headlines using Google Search Grounding.
 - **Smart Caching**: Utilizes Firebase Firestore to cache reports (22h validity) to minimize API usage and latency.
