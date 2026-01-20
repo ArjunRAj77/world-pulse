@@ -19,6 +19,12 @@ export interface NewsHeadline {
   url?: string;
 }
 
+export interface SectorSentiment {
+  economy: number; // -1.0 to 1.0
+  politics: number; // -1.0 to 1.0
+  civil: number; // -1.0 to 1.0
+}
+
 export interface CountrySentimentData {
   countryName: string;
   countryCode?: string; // ISO 3166-1 alpha-2
@@ -29,6 +35,9 @@ export interface CountrySentimentData {
   // New Prediction Fields
   prediction?: PredictionType;
   predictionRationale?: string;
+
+  // New Sector Fields
+  sectorBreakdown?: SectorSentiment;
 
   headlines: NewsHeadline[];
   lastUpdated: number;

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink, Ban, History, ChevronDown, ChevronUp, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink, Ban, History, ChevronDown, ChevronUp, ArrowRight, Sparkles, AlertCircle, PieChart, DollarSign, Landmark, Users } from 'lucide-react';
 import { CountrySentimentData, SentimentType, HistoricalPoint, PredictionType } from '../types';
 import { getCountryHistory } from '../services/db';
 import TrendChart from './TrendChart';
@@ -13,7 +13,7 @@ interface SidePanelProps {
   isLoading: boolean;
   countryName: string | null;
   error?: string | null;
-  warning?: string | null; // Added warning prop for stale data
+  warning?: string | null;
 }
 
 // Expanded List of Fun Facts
@@ -67,6 +67,38 @@ const FUN_FACTS = [
   "Nauru is the only country without an official capital.",
   "Suriname is the most forested country in the world (98%)."
 ];
+
+const SectorBar = ({ label, score, icon }: { label: string, score: number, icon: React.ReactNode }) => {
+    // Normalize -1 to 1  ->  0% to 100%
+    const percentage = Math.max(0, Math.min(100, ((score + 1) / 2) * 100));
+    
+    // Lower threshold to 0.05 to match map sensitivity
+    let colorClass = 'bg-sky-500';
+    if (score > 0.05) colorClass = 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]';
+    else if (score < -0.05) colorClass = 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]';
+
+    return (
+        <div className="mb-3 last:mb-0">
+            <div className="flex justify-between items-end mb-1">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                    {icon}
+                    <span>{label}</span>
+                </div>
+                <span className={clsx("text-xs font-mono font-bold", 
+                    score > 0.05 ? "text-emerald-400" : score < -0.05 ? "text-red-400" : "text-sky-400"
+                )}>
+                    {score > 0 ? '+' : ''}{score.toFixed(2)}
+                </span>
+            </div>
+            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+                <div 
+                    className={clsx("h-full transition-all duration-1000 ease-out", colorClass)}
+                    style={{ width: `${percentage}%` }}
+                />
+            </div>
+        </div>
+    );
+};
 
 const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading, countryName, error, warning }) => {
   const [currentFact, setCurrentFact] = useState(FUN_FACTS[0]);
@@ -256,6 +288,31 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
                   <span>AI Confidence Score: {data.sentimentScore.toFixed(2)}</span>
               </div>
             </div>
+
+            {/* Sector Analysis Card */}
+            {data.sectorBreakdown && (
+                <div className="bg-slate-900/40 border border-slate-800 p-4 rounded-xl animate-[fadeIn_0.6s_ease-out]">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <PieChart className="w-3 h-3" />
+                        Sector Analysis
+                    </h3>
+                    <SectorBar 
+                        label="Economy" 
+                        score={data.sectorBreakdown.economy} 
+                        icon={<DollarSign className="w-3 h-3 text-slate-400" />} 
+                    />
+                    <SectorBar 
+                        label="Politics" 
+                        score={data.sectorBreakdown.politics} 
+                        icon={<Landmark className="w-3 h-3 text-slate-400" />} 
+                    />
+                    <SectorBar 
+                        label="Civil Society" 
+                        score={data.sectorBreakdown.civil} 
+                        icon={<Users className="w-3 h-3 text-slate-400" />} 
+                    />
+                </div>
+            )}
 
             {/* 7-Day Forecast Card (Collapsible) */}
             {data.prediction && (

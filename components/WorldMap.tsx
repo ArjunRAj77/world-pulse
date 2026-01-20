@@ -47,16 +47,19 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
   const getFillColor = (score: number | undefined) => {
       if (score === undefined) return '#1e293b'; // Default Land (Slate 800)
       
-      if (score > 0.2) {
+      // Threshold lowered to 0.05 to capture mild positive/negative sentiments
+      if (score > 0.05) {
           // Positive: Interpolate to Emerald 500
-          return d3.interpolateRgb("#1e293b", "#10b981")(Math.min(1, score * 1.5)); 
+          // Start intensity at 0.3 so mild scores are clearly Green, not black-green
+          return d3.interpolateRgb("#1e293b", "#10b981")(0.3 + (Math.min(1, score) * 0.7)); 
       }
-      if (score < -0.2) {
+      if (score < -0.05) {
           // Negative: Interpolate to Red 500
-          return d3.interpolateRgb("#1e293b", "#ef4444")(Math.min(1, Math.abs(score) * 1.5));
+          // Start intensity at 0.3 so mild scores are clearly Red
+          return d3.interpolateRgb("#1e293b", "#ef4444")(0.3 + (Math.min(1, Math.abs(score)) * 0.7));
       }
       
-      // Neutral (-0.2 to 0.2): Sky 500 (Light Blue)
+      // Neutral (-0.05 to 0.05): Sky 500 (Light Blue)
       return '#0ea5e9'; 
   };
 
@@ -194,7 +197,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       .attr('fill', (d: any) => getFillColor(sentimentMap[d.properties.name]))
       .attr('class', (d: any) => {
           const score = sentimentMap[d.properties.name];
-          // Pulse if significant sentiment
+          // Pulse if significant sentiment (> 0.2 still appropriate for heavy pulsing)
           return (score !== undefined && Math.abs(score) > 0.2) 
             ? 'country-block animate-pulse-sentiment' 
             : 'country-block';

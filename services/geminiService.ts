@@ -60,7 +60,8 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
             1. Provide sentimentScore (-1.0 to 1.0), sentimentLabel (POSITIVE, NEGATIVE, NEUTRAL).
             2. Provide stateSummary (1 sentence).
             3. Predict stability for next 7 days: prediction (IMPROVING, DETERIORATING, STABLE) and predictionRationale (1 short sentence).
-            4. Provide 3-5 headlines.`,
+            4. Analyze sector sentiment (-1.0 to 1.0): economy, politics, civil.
+            5. Provide 3-5 headlines.`,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -73,6 +74,14 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
                         stateSummary: { type: Type.STRING },
                         prediction: { type: Type.STRING, enum: ["IMPROVING", "DETERIORATING", "STABLE"] },
                         predictionRationale: { type: Type.STRING },
+                        sectorBreakdown: {
+                            type: Type.OBJECT,
+                            properties: {
+                                economy: { type: Type.NUMBER, description: "Economic stability score -1.0 to 1.0" },
+                                politics: { type: Type.NUMBER, description: "Political stability score -1.0 to 1.0" },
+                                civil: { type: Type.NUMBER, description: "Civil society/social score -1.0 to 1.0" }
+                            }
+                        },
                         headlines: {
                             type: Type.ARRAY,
                             items: {
@@ -107,6 +116,7 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
             stateSummary: data.stateSummary,
             prediction: data.prediction as PredictionType,
             predictionRationale: data.predictionRationale,
+            sectorBreakdown: data.sectorBreakdown,
             headlines: data.headlines || [],
             lastUpdated: Date.now()
         };
