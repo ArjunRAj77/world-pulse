@@ -63,20 +63,22 @@ const Header: React.FC<HeaderProps> = ({ countries, onCountrySelect, isPanelOpen
     )}>
       
       {/* Logo Section */}
-      <div className="pointer-events-auto bg-slate-900/80 backdrop-blur-md border border-slate-700 rounded-xl p-4 shadow-sm flex-shrink-0 group hover:shadow-md transition-all">
-        <div className="flex items-center gap-3">
-            <div className="relative p-2 bg-indigo-950/50 rounded-lg text-indigo-400 overflow-hidden border border-indigo-500/30 group-hover:border-indigo-400/50 transition-colors">
-                <Radar className="w-8 h-8 animate-[spin_3s_linear_infinite] relative z-10" />
+      <div className="pointer-events-auto flex items-center gap-3">
+          <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700 rounded-xl p-4 shadow-sm flex-shrink-0 group hover:shadow-md transition-all">
+            <div className="flex items-center gap-3">
+                <div className="relative p-2 bg-indigo-950/50 rounded-lg text-indigo-400 overflow-hidden border border-indigo-500/30 group-hover:border-indigo-400/50 transition-colors">
+                    <Radar className="w-8 h-8 animate-[spin_3s_linear_infinite] relative z-10" />
+                </div>
+                <div>
+                    <h1 className="text-2xl font-black tracking-tighter text-slate-100">
+                        GeoPulse
+                    </h1>
+                    <p className="text-[10px] text-slate-400 font-mono tracking-wide group-hover:text-indigo-400 transition-colors">
+                        a living map of global events
+                    </p>
+                </div>
             </div>
-            <div>
-                <h1 className="text-2xl font-black tracking-tighter text-slate-100">
-                    GeoPulse
-                </h1>
-                <p className="text-[9px] text-slate-400 font-mono tracking-wide group-hover:text-indigo-400 transition-colors uppercase">
-                    A living map of global events.
-                </p>
-            </div>
-        </div>
+          </div>
       </div>
 
       {/* Search Bar Section */}

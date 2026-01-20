@@ -1,26 +1,66 @@
-# WorldPulse
+# GeoPulse 🌍
 
-An interactive real-time visualization of global news sentiment.
+> **A living map of global events powered by AI.**
 
-## Setup Instructions
+GeoPulse is an interactive real-time visualization tool that transforms raw geopolitical news into a living heatmap. Powered by **Google Gemini 3 Flash** and **Google Search Grounding**, it analyzes live headlines, socio-political events, and regional stability to generate an AI Confidence Score for every country on Earth.
 
-1.  **API Key**: This application requires a Google Gemini API key. 
-    Ensure the `API_KEY` environment variable is set in your build environment or `.env` file.
-    
-2.  **Running Locally**:
-    If you are running this with a bundler like Parcel or Vite, simply run the start command.
-    ```bash
-    npm start
-    ```
+## ✨ Features
 
-3.  **Deployment**:
-    Ensure your deployment provider (Netlify, Vercel, etc.) exposes the `API_KEY` environment variable to the build process.
-    
-    *   **Vite**: Prefix variable with `VITE_` (e.g., `VITE_API_KEY`) and update `services/geminiService.ts` to use `import.meta.env.VITE_API_KEY`.
-    *   **Parcel/Webpack**: Ensure `process.env.API_KEY` is replaced during build.
+- **Interactive World Map**: A fully responsive D3.js vector map allowing exploration of 180+ countries.
+- **Real-Time AI Analysis**: Instantly generates concise geopolitical summaries using Gemini 3 Flash.
+- **Sentiment Heatmap**: Visualizes global stability with dynamic color coding (Emerald/Amber/Red).
+- **Live News Feed**: Fetches and categorizes the latest headlines using Google Search Grounding.
+- **Smart Caching**: Utilizes Firebase Firestore to cache reports (22h validity) to minimize API usage and latency.
+- **Rate Limit Protection**: Built-in scheduler and quota management to gracefully handle API limits.
 
-## Troubleshooting
+## 🛠️ Tech Stack
 
-*   **Blank Screen**: Open the browser developer console (F12). 
-    *   If you see "process is not defined", your build tool is not replacing `process.env.API_KEY`.
-    *   If you see "Could not find root element", ensure `index.html` has `<div id="root">`.
+- **Frontend**: React 18, TypeScript, TailwindCSS
+- **Visualization**: D3.js (Data-Driven Documents)
+- **AI Core**: Google GenAI SDK (Gemini 3 Flash Preview)
+- **Database**: Firebase Firestore (Caching & History)
+- **Build Tool**: Vite
+
+## 🚀 Setup & Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/geopulse.git
+   cd geopulse
+   ```
+
+2. **Install Dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure Environment**
+   Create a `.env` file in the root directory. You must provide a Google Gemini API Key.
+   
+   ```env
+   # Required
+   VITE_GEMINI_API_KEY=your_gemini_api_key_here
+
+   # Optional (for caching feature)
+   VITE_FIREBASE_API_KEY=...
+   VITE_FIREBASE_PROJECT_ID=...
+   # ... add other firebase config keys if hosting your own instance
+   ```
+
+4. **Run Development Server**
+   ```bash
+   npm run dev
+   ```
+
+## 🧠 How It Works
+
+1. **Selection**: User clicks a country on the map.
+2. **Cache Check**: The app checks Firestore for an analysis generated in the last 22 hours.
+3. **AI Generation**: If no fresh data exists, a request is sent to Gemini 3 Flash.
+4. **Grounding**: Gemini uses Google Search to find recent news articles.
+5. **Synthesis**: The model assigns a Sentiment Score (-1.0 to 1.0) and summarizes the state of affairs.
+6. **Visualization**: The map updates to reflect the new sentiment score.
+
+## 📄 License
+
+MIT License © 2026 Team Inevitables

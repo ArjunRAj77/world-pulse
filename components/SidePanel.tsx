@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink, Ban } from 'lucide-react';
 import { CountrySentimentData, SentimentType } from '../types';
 import clsx from 'clsx';
 
@@ -9,6 +9,7 @@ interface SidePanelProps {
   data: CountrySentimentData | null;
   isLoading: boolean;
   countryName: string | null;
+  error?: string | null;
 }
 
 const FUN_FACTS = [
@@ -29,7 +30,7 @@ const FUN_FACTS = [
   "Wombat poop is cube-shaped."
 ];
 
-const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading, countryName }) => {
+const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading, countryName, error }) => {
   const [currentFact, setCurrentFact] = useState(FUN_FACTS[0]);
 
   useEffect(() => {
@@ -58,9 +59,17 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
   };
 
   const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString(undefined, {
-        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-    });
+    try {
+        return new Date(timestamp).toLocaleString(undefined, {
+            month: 'short', 
+            day: 'numeric', 
+            hour: 'numeric', 
+            minute: '2-digit',
+            timeZoneName: 'short' // Adds timezone abbreviation (e.g., EST, GMT)
+        });
+    } catch (e) {
+        return new Date(timestamp).toLocaleDateString();
+    }
   };
 
   const isCached = data ? (Date.now() - data.lastUpdated) > 10000 : false;
@@ -115,8 +124,26 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
                 </div>
              </div>
           </div>
+        ) : error ? (
+            <div className="flex flex-col items-center justify-center h-full text-center p-4 animate-[fadeIn_0.5s_ease-out]">
+                <div className="bg-red-900/20 p-6 rounded-full border border-red-500/20 mb-4">
+                    <Ban className="w-10 h-10 text-red-400" />
+                </div>
+                <h3 className="text-lg font-bold text-red-200 mb-2">Unavailable</h3>
+                <p className="text-slate-400 max-w-xs leading-relaxed">{error}</p>
+                <button onClick={onClose} className="mt-6 text-sm text-indigo-400 hover:text-indigo-300">
+                    Close Panel
+                </button>
+            </div>
         ) : data ? (
           <>
+            {/* Timestamp Banner - Prominently Displayed */}
+            <div className="flex items-center justify-center gap-2 text-xs font-mono text-slate-400 bg-slate-900/50 py-2 rounded-lg border border-slate-800">
+                <Clock className="w-3 h-3 text-indigo-400" />
+                <span>LAST UPDATED:</span>
+                <span className="text-indigo-300 font-bold">{formatDate(data.lastUpdated)}</span>
+            </div>
+
             {/* Status Card */}
             <div className={clsx("p-5 rounded-xl border animate-[fadeIn_0.5s_ease-out] shadow-sm", getSentimentColor(data.sentimentLabel))}>
               <div className="flex items-center justify-between mb-3">
@@ -138,15 +165,9 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
               </p>
               
               {/* Score Indicator */}
-              <div className="mt-4 flex items-center justify-between text-xs font-mono uppercase opacity-75 text-slate-400">
-                <div className="flex items-center gap-2">
-                    <Activity className="w-4 h-4" />
-                    <span>Score: {data.sentimentScore.toFixed(2)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    <span>Updated: {formatDate(data.lastUpdated)}</span>
-                </div>
+              <div className="mt-4 flex items-center gap-2 text-xs font-mono uppercase opacity-75 text-slate-400 border-t border-white/10 pt-3">
+                  <Activity className="w-4 h-4" />
+                  <span>AI Confidence Score: {data.sentimentScore.toFixed(2)}</span>
               </div>
             </div>
 

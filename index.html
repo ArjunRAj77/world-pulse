@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GeoPulse - A living map of global events</title>
+    <title>GeoPulse - a living map of global events</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -66,35 +66,77 @@
         border-left: 1px solid rgba(255, 255, 255, 0.1);
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "d3": "https://esm.sh/d3@^7.9.0",
-    "clsx": "https://esm.sh/clsx@^2.1.1"
-  }
-}
-</script>
+    <!-- Polyfill for process.env to prevent library crashes -->
+    <script>
+      window.process = window.process || {};
+      window.process.env = window.process.env || {};
+    </script>
+
 <!-- Global Error Handler for Startup Issues -->
 <script>
   window.onerror = function(message, source, lineno, colno, error) {
     console.error("Global Startup Error:", message, error);
-    // Only show if root is empty (meaning React didn't mount)
     const root = document.getElementById('root');
+    // Only show if root is empty (meaning React hasn't taken over)
     if (root && root.innerHTML.trim() === "") {
         const errDiv = document.createElement('div');
-        errDiv.style.color = '#ef4444';
-        errDiv.style.padding = '20px';
-        errDiv.style.fontFamily = 'monospace';
-        errDiv.style.background = '#0f172a';
-        errDiv.innerHTML = '<h3>Startup Error</h3><p>' + message + '</p><p>Check console for details.</p>';
+        errDiv.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:#020617; color:#f8fafc; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; z-index:9999; text-align:center;';
+        
+        // Setup Copy Function
+        window.copyErrorToClipboard = function() {
+            const errorText = `Error: ${message}\nSource: ${source}:${lineno}:${colno}\nStack: ${error ? error.stack : 'N/A'}`;
+            navigator.clipboard.writeText(errorText).then(() => {
+                const btn = document.getElementById('copy-btn');
+                if(btn) { btn.innerText = "Copied!"; setTimeout(() => btn.innerText = "Copy Error Details", 2000); }
+            }).catch(err => alert("Failed to copy: " + err));
+        };
+
+        errDiv.innerHTML = `
+          <div style="max-width: 600px; background: #0f172a; border: 1px solid #ef4444; border-radius: 8px; padding: 30px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+            <h2 style="color: #ef4444; font-size: 1.5rem; margin-bottom: 1rem; font-weight: bold;">Initialization Failure</h2>
+            <p style="color: #cbd5e1; margin-bottom: 1.5rem; line-height: 1.5;">
+              The application failed to start.
+            </p>
+            <div style="background: #1e293b; padding: 15px; border-radius: 4px; text-align: left; margin-bottom: 1.5rem; color: #fca5a5; font-size: 0.9rem; border-left: 3px solid #ef4444; overflow-x: auto; max-height: 200px; white-space: pre-wrap;">${message}</div>
+            
+            <div style="text-align: left; background: #1e293b; padding: 20px; border-radius: 4px; margin-bottom: 1.5rem;">
+              <h3 style="color: #94a3b8; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;">Troubleshooting Steps</h3>
+              <ul style="color: #e2e8f0; font-size: 0.95rem; list-style-type: none; padding: 0; line-height: 2;">
+                <li>✓ <strong>Check Dependencies:</strong> Ensure 'npm install' has been run.</li>
+                <li>✓ <strong>Build Tool:</strong> Verify Vite/Webpack is running correctly.</li>
+                <li>✓ <strong>Console:</strong> Check F12 for missing module errors.</li>
+              </ul>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="copy-btn" onclick="window.copyErrorToClipboard()" style="background: #334155; color: #e2e8f0; border: 1px solid #475569; padding: 12px 20px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                  Copy Error Details
+                </button>
+                <button onclick="window.location.reload()" style="background: #4f46e5; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s;">
+                  Attempt Reload
+                </button>
+            </div>
+          </div>
+        `;
         document.body.appendChild(errDiv);
     }
   };
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.37.0",
+    "d3": "https://esm.sh/d3@^7.9.0",
+    "clsx": "https://esm.sh/clsx@^2.1.1",
+    "firebase/": "https://esm.sh/firebase@^12.8.0/",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+  }
+}
 </script>
 </head>
   <body>

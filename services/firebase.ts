@@ -1,0 +1,1 @@
+// Unused file. Logic has been moved to direct API calls in geminiService.ts

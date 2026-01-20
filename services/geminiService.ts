@@ -1,20 +1,10 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { CountrySentimentData, SentimentType } from "../types";
 
 // Initialize Gemini Client
-// PRIORITY: Check GEMINI_API_KEY first as requested, then fall back to generic API_KEY
-const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-
-// We initialize the client even if key is missing to allow app to load, 
-// but requests will be guarded below.
-const ai = new GoogleGenAI({ apiKey: apiKey || "dummy-key-to-prevent-crash" });
-
-const modelId = "gemini-3-flash-preview";
-const CACHE_PREFIX = 'wp_sentiment_v2_'; 
-const CACHE_DURATION = 24 * 60 * 60 * 1000; 
-const RATE_LIMIT_STORAGE_KEY = 'wp_rate_limit_lock_until';
-const LAST_REQUEST_STORAGE_KEY = 'wp_last_api_req_ts';
-const MIN_REQUEST_INTERVAL = 5000; 
+// @google/genai Coding Guidelines: apiKey must be from process.env.API_KEY
+// Assuming process.env.API_KEY is available and valid.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const KEY_COUNTRIES = [
   "United States", "China", "Russia", "United Kingdom", "Germany", 
@@ -22,337 +12,115 @@ export const KEY_COUNTRIES = [
   "Australia", "Canada", "Saudi Arabia", "Iran", "North Korea"
 ];
 
-const getRateLimitLock = (): number => {
-    try {
-        const stored = localStorage.getItem(RATE_LIMIT_STORAGE_KEY);
-        return stored ? parseInt(stored, 10) : 0;
-    } catch { return 0; }
+// Helper to pause execution
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Normalization helper to prevent duplicate DB entries
+export const normalizeCountryName = (name: string): string => {
+  const n = name.trim();
+  if (n === "United States of America" || n === "USA") return "United States";
+  if (n === "United Kingdom" || n === "England") return "United Kingdom";
+  return n;
 };
 
-const setRateLimitLock = (timestamp: number) => {
-    localStorage.setItem(RATE_LIMIT_STORAGE_KEY, timestamp.toString());
-};
-
-const enforceGlobalThrottle = async () => {
+export const validateApiKeyConnection = async (): Promise<{ success: boolean; message: string }> => {
     try {
-        const lastRequest = localStorage.getItem(LAST_REQUEST_STORAGE_KEY);
-        if (lastRequest) {
-            const lastTime = parseInt(lastRequest, 10);
-            const now = Date.now();
-            const timeSince = now - lastTime;
-            
-            if (timeSince < MIN_REQUEST_INTERVAL) {
-                const waitTime = MIN_REQUEST_INTERVAL - timeSince;
-                console.log(`[GeminiService] Global throttle active. Sleeping for ${waitTime}ms...`);
-                await new Promise(resolve => setTimeout(resolve, waitTime));
-            }
+        if (!process.env.API_KEY) {
+             return { success: false, message: "Missing API Key" };
         }
-        localStorage.setItem(LAST_REQUEST_STORAGE_KEY, Date.now().toString());
-    } catch (e) {
-        console.warn("[GeminiService] Throttle storage error", e);
+        // Basic validation for placeholder
+        if (process.env.API_KEY.includes("YOUR_GEMINI_API_KEY")) {
+             return { success: false, message: "PLACEHOLDER_KEY_DETECTED" };
+        }
+        
+        // OPTIMIZATION: We do NOT make a test call here anymore.
+        // We return success based on static analysis; actual errors will be caught in data fetching.
+        return { success: true, message: "Connected" };
+    } catch (error: any) {
+        console.error("[GeminiService] Validation Error:", error);
+        return { success: false, message: error.message || "Connection Failed" };
     }
-};
-
-const sentimentSchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    countryCode: {
-      type: Type.STRING,
-      description: "The 2-letter ISO 3166-1 alpha-2 country code (e.g. US, CN, FR, GB).",
-    },
-    sentimentScore: {
-      type: Type.NUMBER,
-      description: "A score from -1.0 (very negative) to 1.0 (very positive) representing the overall news sentiment.",
-    },
-    stateSummary: {
-      type: Type.STRING,
-      description: "A 1-2 sentence summary of the country's current geopolitical or social state based on the last 24 hours.",
-    },
-    headlines: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          title: { type: Type.STRING },
-          category: { type: Type.STRING, enum: ["GOOD", "BAD", "NEUTRAL"] },
-          snippet: { type: Type.STRING, description: "Very brief context." },
-          source: { type: Type.STRING, description: "The name of the news publisher (e.g. BBC, Reuters)." },
-          url: { type: Type.STRING, description: "The direct URL to the news story." }
-        },
-        required: ["title", "category", "snippet", "source", "url"],
-      },
-      description: "Top 5 most relevant and recent news headlines from the last 24 hours.",
-    },
-  },
-  required: ["countryCode", "sentimentScore", "stateSummary", "headlines"],
-};
-
-const getRateLimitResponse = (countryName: string, waitSeconds: number): CountrySentimentData => {
-    return {
-        countryName,
-        sentimentScore: 0,
-        sentimentLabel: SentimentType.NEUTRAL,
-        stateSummary: `⚠️ SYSTEM OVERLOAD: API Rate Limit Reached. Cooldown active for ${waitSeconds}s.`,
-        headlines: [
-            { 
-                title: "Quota Exceeded", 
-                category: "BAD", 
-                snippet: "The global sensor network is saturated. We are cooling down to prevent data corruption. Please try again in a minute.",
-                source: "System",
-                url: "#"
-            }
-        ],
-        lastUpdated: Date.now()
-    };
 };
 
 /**
- * DEBUG FUNCTION: Verifies if the API key is active and working.
- * Logs specific details to console to help with deployment debugging.
+ * Real API Call using Gemini 3 Flash with Retry Logic
  */
-export const validateApiKeyConnection = async (): Promise<{ success: boolean; message: string }> => {
-    if (!apiKey) {
-        console.error("❌ [GeminiService] No API Key found in environment variables.");
-        return { success: false, message: "Missing API Key" };
-    }
+export const fetchCountrySentiment = async (countryName: string): Promise<CountrySentimentData | null> => {
+  console.debug(`[GeminiService] Analyzing: ${countryName}`);
 
-    const maskedKey = apiKey.length > 5 
-        ? `${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 3)}` 
-        : "(Invalid Length)";
+  let attempt = 0;
+  const MAX_RETRIES = 2; // Reduced retries to save time on hard failures
 
-    console.log(`ℹ️ [GeminiService] Testing Connection using Key: ${maskedKey}`);
-
+  while (attempt <= MAX_RETRIES) {
     try {
-        // Simple "ping" test using countTokens to avoid using a lot of quota
-        await ai.models.countTokens({
-            model: modelId,
-            contents: "System Check"
+        const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: `Analyze sentiment and news for ${countryName}. Return JSON with sentimentScore (-1.0 to 1.0), sentimentLabel (POSITIVE, NEGATIVE, NEUTRAL), stateSummary, and 3-5 headlines.`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        countryName: { type: Type.STRING },
+                        countryCode: { type: Type.STRING, description: "ISO 3166-1 alpha-2 code" },
+                        sentimentScore: { type: Type.NUMBER },
+                        sentimentLabel: { type: Type.STRING },
+                        stateSummary: { type: Type.STRING },
+                        headlines: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    title: { type: Type.STRING },
+                                    category: { type: Type.STRING },
+                                    snippet: { type: Type.STRING },
+                                    source: { type: Type.STRING },
+                                    url: { type: Type.STRING }
+                                }
+                            }
+                        }
+                    }
+                },
+                tools: [{googleSearch: {}}]
+            }
         });
+
+        const text = response.text;
+        if (!text) {
+            throw new Error("Empty response text");
+        }
         
-        console.log("✅ [GeminiService] Connection Successful! API is responding.");
-        return { success: true, message: "Connected" };
-    } catch (error: any) {
-        console.error("❌ [GeminiService] Connection Test Failed:", error);
-        return { 
-            success: false, 
-            message: error?.message || "Unknown API Error"
-        };
-    }
-};
-
-export const fetchCountrySentiment = async (countryName: string): Promise<CountrySentimentData> => {
-  console.log(`[GeminiService] Requesting sentiment for: ${countryName}`);
-
-  // 1. CHECK CACHE
-  const cacheKey = `${CACHE_PREFIX}${countryName}`;
-  const cachedRaw = localStorage.getItem(cacheKey);
-  
-  if (cachedRaw) {
-    try {
-        const cachedData = JSON.parse(cachedRaw) as CountrySentimentData;
-        const now = Date.now();
-        const age = now - cachedData.lastUpdated;
-
-        if (age < CACHE_DURATION) {
-            console.log(`[GeminiService] Returning CACHED data for ${countryName}`);
-            return cachedData;
-        }
-    } catch (e) {
-        localStorage.removeItem(cacheKey);
-    }
-  }
-
-  // 2. CHECK PERSISTENT RATE LIMIT LOCK
-  const lockTime = getRateLimitLock();
-  if (Date.now() < lockTime) {
-      const waitSeconds = Math.ceil((lockTime - Date.now()) / 1000);
-      return getRateLimitResponse(countryName, waitSeconds);
-  }
-
-  // 3. FETCH FROM API - CRITICAL GUARD
-  if (!apiKey) {
-      console.error("[GeminiService] CRITICAL: Missing API Key. Ensure process.env.GEMINI_API_KEY is set in deployment.");
-      return {
-          countryName,
-          sentimentScore: 0,
-          sentimentLabel: SentimentType.NEUTRAL,
-          stateSummary: "Configuration Error: API Key missing. Please check GEMINI_API_KEY environment variable.",
-          headlines: [
-             { title: "Missing Configuration", category: "BAD", snippet: "The application could not find the 'GEMINI_API_KEY'.", source: "System", url: "#" }
-          ],
-          lastUpdated: Date.now()
-      };
-  }
-
-  try {
-    await enforceGlobalThrottle();
-
-    const prompt = `
-      Perform a real-time news sentiment analysis for ${countryName}.
-      
-      CRITICAL: You must use Google Search to find news headlines published strictly within the **LAST 24 HOURS**.
-      
-      1. Search for the top news stories for ${countryName} today.
-      2. Identify the top 5 most significant events.
-      3. Classify each headline as:
-         - GOOD: Economic growth, peace treaties, scientific breakthroughs, social improvements.
-         - BAD: Conflict, natural disasters, political corruption, crime spikes, economic crashes.
-         - NEUTRAL: Routine diplomatic visits, general announcements, sports (unless major).
-      4. EXTRACT SOURCE DATA: For every headline, you MUST provide the 'source' name (e.g., CNN, Al Jazeera) and the 'url' to the article.
-      5. Calculate an aggregated sentiment score (-1.0 to 1.0) based on these 5 stories.
-      6. Provide a "State of the Nation" summary reflecting these recent events.
-      7. Provide the 2-letter ISO 3166-1 alpha-2 country code (e.g. US, CN, FR).
-      
-      If absolutely no news is found in the last 24h, you may look back 48h, but note this in the summary.
-    `;
-
-    const response = await ai.models.generateContent({
-      model: modelId,
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
-        responseSchema: sentimentSchema,
-      },
-    });
-
-    const text = response.text;
-    if (!text) {
-      throw new Error("No response text from Gemini");
-    }
-
-    const data = JSON.parse(text);
-    let sentimentLabel = SentimentType.NEUTRAL;
-    if (data.sentimentScore > 0.2) sentimentLabel = SentimentType.POSITIVE;
-    if (data.sentimentScore < -0.2) sentimentLabel = SentimentType.NEGATIVE;
-
-    const result: CountrySentimentData = {
-      countryName,
-      countryCode: data.countryCode,
-      sentimentScore: data.sentimentScore,
-      sentimentLabel,
-      stateSummary: data.stateSummary,
-      headlines: data.headlines,
-      lastUpdated: Date.now(),
-    };
-
-    try {
-        localStorage.setItem(cacheKey, JSON.stringify(result));
-    } catch (e) {
-        console.warn("[GeminiService] Storage quota exceeded");
-    }
-
-    return result;
-
-  } catch (error: any) {
-    const errorMessage = error?.message || "";
-    
-    // Check for Rate Limit (429)
-    const isRateLimit = errorMessage.includes("429") || 
-                        errorMessage.includes("quota") || 
-                        errorMessage.includes("RESOURCE_EXHAUSTED") ||
-                        error?.status === 429;
-
-    // Check for Permission/Auth Error (403/400) - Common in deployment (Referrer restrictions)
-    const isPermissionError = errorMessage.includes("403") || 
-                              errorMessage.includes("PERMISSION_DENIED") || 
-                              errorMessage.includes("API key not valid") ||
-                              errorMessage.includes("bad_request");
-
-    if (isRateLimit) {
-        setRateLimitLock(Date.now() + 60000); 
-        return getRateLimitResponse(countryName, 60);
-    }
-
-    console.error(`[GeminiService] Error fetching sentiment for ${countryName}:`, error);
-
-    // Return a specific helpful message for permission errors
-    if (isPermissionError) {
+        const data = JSON.parse(text);
+        
         return {
-            countryName,
-            sentimentScore: 0,
-            sentimentLabel: SentimentType.NEGATIVE,
-            stateSummary: "ACCESS DENIED: Your API Key is being blocked by Google.",
-            headlines: [
-                { 
-                    title: "Deployment Configuration Error", 
-                    category: "BAD", 
-                    snippet: "The server rejected the API Key (Error 403). Please check Google Cloud Console > APIs & Services > Credentials > Application Restrictions. Ensure your deployment domain is allowed.", 
-                    source: "System", 
-                    url: "https://console.cloud.google.com/apis/credentials" 
-                }
-            ],
-            lastUpdated: Date.now(),
+            countryName: data.countryName || countryName,
+            countryCode: data.countryCode,
+            sentimentScore: data.sentimentScore,
+            sentimentLabel: data.sentimentLabel as SentimentType,
+            stateSummary: data.stateSummary,
+            headlines: data.headlines || [],
+            lastUpdated: Date.now()
         };
-    }
 
-    return {
-      countryName,
-      sentimentScore: 0,
-      sentimentLabel: SentimentType.NEUTRAL,
-      stateSummary: "Signal lost. Unable to retrieve live intelligence at this time.",
-      headlines: [
-        { title: "Connection Error", category: "NEUTRAL", snippet: "Could not connect to analysis grid. Please try again later.", source: "System", url: "#" }
-      ],
-      lastUpdated: Date.now(),
-    };
-  }
-};
-
-export const preloadGlobalData = async (
-  onDataReceived: (data: CountrySentimentData) => void
-) => {
-  const needsFetch: string[] = [];
-
-  for (const country of KEY_COUNTRIES) {
-    const cacheKey = `${CACHE_PREFIX}${country}`;
-    const cachedRaw = localStorage.getItem(cacheKey);
-    let validCacheFound = false;
-
-    if (cachedRaw) {
-      try {
-        const data = JSON.parse(cachedRaw);
-        if (Date.now() - data.lastUpdated < CACHE_DURATION) {
-          onDataReceived(data); 
-          validCacheFound = true;
+    } catch (error: any) {
+        const isRateLimit = error.status === 429 || (error.message && error.message.includes("429")) || (error.message && error.message.includes("quota"));
+        
+        if (isRateLimit) {
+            if (attempt < MAX_RETRIES) {
+                const delay = 15000 + (attempt * 15000); 
+                console.warn(`[GeminiService] 429/Quota Limit for ${countryName}. Retrying in ${Math.round(delay/1000)}s...`);
+                await wait(delay);
+                attempt++;
+                continue;
+            } else {
+                // CRITICAL: If we exhaust retries on a rate limit, THROW so the scheduler stops the whole queue.
+                throw new Error("QUOTA_EXHAUSTED");
+            }
         }
-      } catch (e) { localStorage.removeItem(cacheKey); }
+        
+        console.error(`[GeminiService] Error fetching sentiment for ${countryName}:`, error);
+        return null; // Non-critical error (e.g. parsing), return null to skip this country but continue queue
     }
-
-    if (!validCacheFound) needsFetch.push(country);
   }
-  
-  // NOTE: We do not auto-fetch in background if apiKey is missing to prevent spamming errors
-  if (!apiKey && needsFetch.length > 0) {
-      console.warn("[GeminiService] Skipping preload: API Key missing.");
-      return;
-  }
-  
-  if (needsFetch.length > 0) {
-      for (let i = 0; i < needsFetch.length; i++) {
-        if (Date.now() < getRateLimitLock()) break;
-        const country = needsFetch[i];
-        if (i > 0) await new Promise(r => setTimeout(r, 1000));
-        const data = await fetchCountrySentiment(country);
-        if (data.stateSummary.includes("SYSTEM OVERLOAD")) break;
-        onDataReceived(data);
-      }
-  }
+  return null;
 };
-
-export const getCachedSentimentMap = (): Record<string, number> => {
-    const map: Record<string, number> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith(CACHE_PREFIX)) {
-            try {
-                const item = localStorage.getItem(key);
-                if (item) {
-                    const data = JSON.parse(item) as CountrySentimentData;
-                    map[data.countryName] = data.sentimentScore;
-                }
-            } catch (e) { }
-        }
-    }
-    return map;
-}

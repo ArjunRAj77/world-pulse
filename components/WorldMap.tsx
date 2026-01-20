@@ -63,6 +63,9 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
   useEffect(() => {
     if (!geoData || !svgRef.current || dimensions.width === 0 || dimensions.height === 0) return;
 
+    // Safety check: if fallback was triggered and features are empty, do not attempt to draw
+    if (!geoData.features || geoData.features.length === 0) return;
+
     const { width, height } = dimensions;
     const svg = d3.select(svgRef.current);
     
@@ -78,6 +81,9 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
         type: "FeatureCollection",
         features: geoData.features.filter((f: any) => f.properties.name !== "Antarctica")
     };
+    
+    // Critical Safety: If filtering results in empty array, stop here to prevent fitExtent crash
+    if (featuresWithoutAntarctica.features.length === 0) return;
 
     const projection = d3.geoMercator()
       .fitExtent([[20, 20], [width - 20, height - 20]], featuresWithoutAntarctica as any);
@@ -199,6 +205,9 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
   useEffect(() => {
     if (!selectedCountry || !zoomRef.current || !svgRef.current || dimensions.width === 0) return;
     
+    // Safety check for empty features
+    if (!geoData || !geoData.features || geoData.features.length === 0) return;
+
     const pathGenerator = d3.geoPath().projection(projectionRef.current);
     const feature = geoData.features.find((f: any) => f.properties.name === selectedCountry);
     
