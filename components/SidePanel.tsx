@@ -285,8 +285,13 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
       </div>
       
       {/* Footer */}
-      <div className="p-4 border-t border-slate-700/50 text-center text-xs text-slate-500 font-mono">
-        POWERED BY GEMINI 3 FLASH & GOOGLE SEARCH
+      <div className="p-4 border-t border-slate-700/50 text-center">
+        <div className="text-xs text-slate-500 font-mono mb-2">
+           POWERED BY GEMINI 3 FLASH & GOOGLE SEARCH
+        </div>
+        <p className="text-[10px] text-slate-600 leading-tight">
+            Disclaimer: Analysis is AI-generated for informational purposes only.
+        </p>
       </div>
       
       <style>{`
