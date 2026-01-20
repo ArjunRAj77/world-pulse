@@ -5,6 +5,12 @@ export enum SentimentType {
   NEUTRAL = 'NEUTRAL',
 }
 
+export enum PredictionType {
+  IMPROVING = 'IMPROVING',
+  DETERIORATING = 'DETERIORATING',
+  STABLE = 'STABLE',
+}
+
 export interface NewsHeadline {
   title: string;
   category: 'GOOD' | 'BAD' | 'NEUTRAL';
@@ -19,6 +25,11 @@ export interface CountrySentimentData {
   sentimentScore: number; // -1.0 to 1.0
   sentimentLabel: SentimentType;
   stateSummary: string;
+  
+  // New Prediction Fields
+  prediction?: PredictionType;
+  predictionRationale?: string;
+
   headlines: NewsHeadline[];
   lastUpdated: number;
 }

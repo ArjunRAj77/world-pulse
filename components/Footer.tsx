@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Heart, Zap, Info } from 'lucide-react';
 
@@ -48,7 +49,7 @@ const Footer: React.FC<FooterProps> = ({ onSecretTest, onOpenAbout }) => {
             <button 
                 onClick={onOpenAbout}
                 className="absolute right-4 p-2 text-slate-500 hover:text-indigo-400 hover:bg-slate-800 rounded-full transition-all"
-                title="About GeoPulse"
+                title="About Geo-Pulse"
             >
                 <Info className="w-4 h-4" />
             </button>

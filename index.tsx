@@ -1,9 +1,10 @@
+
 import React, { ErrorInfo, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { Copy, RefreshCw, AlertTriangle } from 'lucide-react';
 
-console.log("[System] Initializing GeoPulse...");
+console.log("[System] Initializing Geo-Pulse...");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

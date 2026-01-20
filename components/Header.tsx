@@ -72,7 +72,7 @@ const Header: React.FC<HeaderProps> = ({ countries, onCountrySelect, isPanelOpen
                 </div>
                 <div>
                     <h1 className="text-2xl font-black tracking-tighter text-slate-100">
-                        GeoPulse
+                        Geo-Pulse
                     </h1>
                     <p className="text-[10px] text-slate-400 font-mono tracking-wide group-hover:text-indigo-400 transition-colors">
                         a living map of global events

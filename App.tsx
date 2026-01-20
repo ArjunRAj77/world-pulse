@@ -430,17 +430,17 @@ function App() {
                              <Radar className="w-8 h-8 text-indigo-400" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-white">About GeoPulse</h2>
+                            <h2 className="text-2xl font-bold text-white">About Geo-Pulse</h2>
                             <p className="text-slate-400 text-sm font-mono">v1.0.0 • Public Beta</p>
                         </div>
                     </div>
 
                     <div className="space-y-4 text-slate-300 text-sm leading-relaxed">
                         <p>
-                            <strong className="text-indigo-400">GeoPulse</strong> is a real-time visualization tool that transforms raw geopolitical news into a living, interactive heatmap.
+                            <strong className="text-indigo-400">Geo-Pulse</strong> is a real-time visualization tool that transforms raw geopolitical news into a living, interactive heatmap.
                         </p>
                         <p>
-                            Powered by <strong className="text-white">Google Gemini 3 Flash</strong>, the application analyzes live news headlines, socio-political events, and regional stability to generate an AI Confidence Score for every country on Earth.
+                            Powered by <strong className="text-white">Google Gemini 3 Flash</strong>, the application analyzes live headlines, socio-political events, and regional stability to generate an AI Confidence Score for every country on Earth.
                         </p>
                         
                         <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50 mt-4 space-y-2">

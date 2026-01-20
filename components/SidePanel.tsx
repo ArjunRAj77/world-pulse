@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink, Ban, History, ChevronDown, ChevronUp } from 'lucide-react';
-import { CountrySentimentData, SentimentType, HistoricalPoint } from '../types';
+import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink, Ban, History, ChevronDown, ChevronUp, ArrowRight, Sparkles } from 'lucide-react';
+import { CountrySentimentData, SentimentType, HistoricalPoint, PredictionType } from '../types';
 import { getCountryHistory } from '../services/db';
 import TrendChart from './TrendChart';
 import clsx from 'clsx';
@@ -15,6 +15,7 @@ interface SidePanelProps {
   error?: string | null;
 }
 
+// Expanded List of Fun Facts (50+)
 const FUN_FACTS = [
   "France uses 12 different time zones, the most of any country.",
   "Canada has more lakes than the rest of the world combined.",
@@ -30,7 +31,40 @@ const FUN_FACTS = [
   "North Korea and Cuba are the only places you can't buy Coca-Cola.",
   "The Sahara Desert used to be a tropical rainforest.",
   "Sharks existed before trees.",
-  "Wombat poop is cube-shaped."
+  "Wombat poop is cube-shaped.",
+  "Iceland has no mosquitoes.",
+  "Australia is wider than the moon.",
+  "Russia has a larger surface area than Pluto.",
+  "Bangladesh has more people than Russia.",
+  "Finland has the most saunas per capita.",
+  "There are no rivers in Saudi Arabia.",
+  "The Dead Sea is sinking by about 1 meter per year.",
+  "Sudan has more pyramids than Egypt.",
+  "Istanbul is the only city in the world located on two continents.",
+  "Japan consists of over 6,800 islands.",
+  "90% of Earth's population lives in the Northern Hemisphere.",
+  "California has a larger economy than most countries.",
+  "A single cloud can weigh more than a million pounds.",
+  "The Amazon rainforest produces 20% of the world's oxygen.",
+  "Mount Everest grows about 4 millimeters every year.",
+  "The Pacific Ocean shrinks by about 2.5 cm yearly.",
+  "The Atlantic Ocean grows by about 2.5 cm yearly.",
+  "Cowboys actually didn't wear cowboy hats; they wore bowler hats.",
+  "It rains diamonds on Jupiter and Saturn.",
+  "Humans share 60% of their DNA with bananas.",
+  "A bolt of lightning is five times hotter than the sun.",
+  "The Eiffel Tower can be 15 cm taller during the summer due to thermal expansion.",
+  "New Zealand was the first country to give women the vote.",
+  "Mongolia is the least densely populated country in the world.",
+  "Bhutan is the only carbon-negative country in the world.",
+  "There are more castles in Germany than McDonald's in the US.",
+  "San Marino is the oldest republic in the world.",
+  "Liechtenstein is the largest producer of false teeth.",
+  "Papua New Guinea has over 850 languages spoken.",
+  "Bolivia has two capital cities: La Paz and Sucre.",
+  "Kiribati is the only country in all four hemispheres.",
+  "Nauru is the only country without an official capital.",
+  "Suriname is the most forested country in the world (98%)."
 ];
 
 const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading, countryName, error }) => {
@@ -38,15 +72,18 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
   const [history, setHistory] = useState<HistoricalPoint[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   
-  // Collapse state for the history chart
+  // Collapse state
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isForecastOpen, setIsForecastOpen] = useState(true);
 
   useEffect(() => {
     if (!isLoading) return;
+    // Pick a random start
     setCurrentFact(FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)]);
+    
     const interval = setInterval(() => {
        setCurrentFact(FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)]);
-    }, 4000); 
+    }, 5000); // Increased to 5s for readability
     return () => clearInterval(interval);
   }, [isLoading]);
 
@@ -56,6 +93,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
         setLoadingHistory(true);
         // Reset collapse state when viewing a new country
         setIsHistoryOpen(false);
+        setIsForecastOpen(true); // Default open for new data
         getCountryHistory(countryName).then(points => {
             setHistory(points);
             setLoadingHistory(false);
@@ -81,6 +119,22 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
     }
   };
 
+  const getPredictionIcon = (type?: PredictionType) => {
+    switch(type) {
+        case PredictionType.IMPROVING: return <TrendingUp className="w-4 h-4 text-emerald-400" />;
+        case PredictionType.DETERIORATING: return <TrendingDown className="w-4 h-4 text-red-400" />;
+        default: return <ArrowRight className="w-4 h-4 text-sky-400" />;
+    }
+  };
+
+  const getPredictionColor = (type?: PredictionType) => {
+      switch(type) {
+        case PredictionType.IMPROVING: return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
+        case PredictionType.DETERIORATING: return 'text-red-400 border-red-500/30 bg-red-500/10';
+        default: return 'text-sky-400 border-sky-500/30 bg-sky-500/10';
+    }
+  };
+
   const formatDate = (timestamp: number) => {
     try {
         return new Date(timestamp).toLocaleString(undefined, {
@@ -88,7 +142,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
             day: 'numeric', 
             hour: 'numeric', 
             minute: '2-digit',
-            timeZoneName: 'short' // Adds timezone abbreviation (e.g., EST, GMT)
+            timeZoneName: 'short'
         });
     } catch (e) {
         return new Date(timestamp).toLocaleDateString();
@@ -193,6 +247,41 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
                   <span>AI Confidence Score: {data.sentimentScore.toFixed(2)}</span>
               </div>
             </div>
+
+            {/* NEW: 7-Day Forecast Card (Collapsible) */}
+            {data.prediction && (
+                <div className={clsx(
+                    "relative rounded-xl border animate-[fadeIn_0.6s_ease-out] transition-all duration-300 overflow-hidden",
+                    getPredictionColor(data.prediction)
+                )}>
+                    {/* Background Icon */}
+                    <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
+                        <Sparkles className="w-12 h-12" />
+                    </div>
+                    
+                    <button 
+                        onClick={() => setIsForecastOpen(!isForecastOpen)}
+                        className="w-full flex items-center justify-between p-4 text-left focus:outline-none hover:bg-white/5 transition-colors"
+                    >
+                        <div className="flex items-center gap-2 font-bold text-sm tracking-widest uppercase opacity-90">
+                            {getPredictionIcon(data.prediction)}
+                            <span>7-Day Forecast: {data.prediction}</span>
+                        </div>
+                        {isForecastOpen ? 
+                            <ChevronUp className="w-4 h-4 opacity-70" /> : 
+                            <ChevronDown className="w-4 h-4 opacity-70" />
+                        }
+                    </button>
+
+                    {isForecastOpen && (
+                        <div className="px-4 pb-4 animate-[fadeIn_0.3s_ease-out]">
+                            <p className="text-sm opacity-90 relative z-10 leading-relaxed border-t border-white/10 pt-3">
+                                {data.predictionRationale || "Analysis suggests current trends will persist."}
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* HISTORICAL TIMELINE SECTION (Collapsible) */}
             <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden animate-[fadeIn_0.6s_ease-out]">

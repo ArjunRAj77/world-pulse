@@ -1,5 +1,6 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
-import { CountrySentimentData, SentimentType } from "../types";
+import { CountrySentimentData, SentimentType, PredictionType } from "../types";
 
 // Initialize Gemini Client
 // @google/genai Coding Guidelines: apiKey must be from process.env.API_KEY
@@ -55,7 +56,11 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
     try {
         const response = await ai.models.generateContent({
             model: "gemini-3-flash-preview",
-            contents: `Analyze sentiment and news for ${countryName}. Return JSON with sentimentScore (-1.0 to 1.0), sentimentLabel (POSITIVE, NEGATIVE, NEUTRAL), stateSummary, and 3-5 headlines.`,
+            contents: `Analyze sentiment and news for ${countryName}. 
+            1. Provide sentimentScore (-1.0 to 1.0), sentimentLabel (POSITIVE, NEGATIVE, NEUTRAL).
+            2. Provide stateSummary (1 sentence).
+            3. Predict stability for next 7 days: prediction (IMPROVING, DETERIORATING, STABLE) and predictionRationale (1 short sentence).
+            4. Provide 3-5 headlines.`,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -66,6 +71,8 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
                         sentimentScore: { type: Type.NUMBER },
                         sentimentLabel: { type: Type.STRING },
                         stateSummary: { type: Type.STRING },
+                        prediction: { type: Type.STRING, enum: ["IMPROVING", "DETERIORATING", "STABLE"] },
+                        predictionRationale: { type: Type.STRING },
                         headlines: {
                             type: Type.ARRAY,
                             items: {
@@ -98,6 +105,8 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
             sentimentScore: data.sentimentScore,
             sentimentLabel: data.sentimentLabel as SentimentType,
             stateSummary: data.stateSummary,
+            prediction: data.prediction as PredictionType,
+            predictionRationale: data.predictionRationale,
             headlines: data.headlines || [],
             lastUpdated: Date.now()
         };
