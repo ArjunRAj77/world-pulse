@@ -5,16 +5,23 @@ import { Heart, Zap, Info } from 'lucide-react';
 interface FooterProps {
     onSecretTest: () => void;
     onOpenAbout: () => void;
+    onOpenEasterEgg: () => void;
 }
 
-const Footer: React.FC<FooterProps> = ({ onSecretTest, onOpenAbout }) => {
+const Footer: React.FC<FooterProps> = ({ onSecretTest, onOpenAbout, onOpenEasterEgg }) => {
     const [clickCount, setClickCount] = useState(0);
 
     const handleSecretClick = () => {
         const newCount = clickCount + 1;
         setClickCount(newCount);
         
-        if (newCount >= 5) {
+        // Easter Egg Trigger (Double Click)
+        if (newCount === 2) {
+            onOpenEasterEgg();
+        }
+
+        // Dev Mode Trigger (7 clicks now, to avoid overlap with easter egg)
+        if (newCount >= 7) {
             onSecretTest();
             setClickCount(0);
         }
@@ -27,10 +34,10 @@ const Footer: React.FC<FooterProps> = ({ onSecretTest, onOpenAbout }) => {
         <div className="absolute bottom-0 left-0 w-full bg-slate-900/80 backdrop-blur border-t border-slate-800 text-slate-400 text-xs font-mono p-3 flex justify-center items-center z-30 selection:bg-indigo-500/30">
             
             {/* Dev Mode Indicator (Moved to Left) */}
-            {clickCount > 0 && clickCount < 5 && (
+            {clickCount > 2 && clickCount < 7 && (
                 <div className="absolute left-4 text-[10px] opacity-50 flex items-center gap-1">
                     <Zap className="w-3 h-3 text-amber-400" />
-                    <span>Dev Mode: {clickCount}/5</span>
+                    <span>Dev Mode: {clickCount}/7</span>
                 </div>
             )}
 
@@ -38,7 +45,7 @@ const Footer: React.FC<FooterProps> = ({ onSecretTest, onOpenAbout }) => {
             <div 
                 onClick={handleSecretClick}
                 className="flex items-center gap-2 cursor-pointer hover:text-indigo-400 transition-colors select-none group"
-                title={clickCount > 0 ? `${5 - clickCount} more...` : undefined}
+                title={clickCount > 0 ? "Keep clicking..." : undefined}
             >
                 <span>Vibe coded by</span>
                 <span className="font-bold text-slate-200 group-hover:text-white transition-colors">Team Inevitables</span>

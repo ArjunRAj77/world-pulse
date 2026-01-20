@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink, Ban, History, ChevronDown, ChevronUp, ArrowRight, Sparkles } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink, Ban, History, ChevronDown, ChevronUp, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
 import { CountrySentimentData, SentimentType, HistoricalPoint, PredictionType } from '../types';
 import { getCountryHistory } from '../services/db';
 import TrendChart from './TrendChart';
@@ -13,9 +13,10 @@ interface SidePanelProps {
   isLoading: boolean;
   countryName: string | null;
   error?: string | null;
+  warning?: string | null; // Added warning prop for stale data
 }
 
-// Expanded List of Fun Facts (50+)
+// Expanded List of Fun Facts
 const FUN_FACTS = [
   "France uses 12 different time zones, the most of any country.",
   "Canada has more lakes than the rest of the world combined.",
@@ -67,7 +68,7 @@ const FUN_FACTS = [
   "Suriname is the most forested country in the world (98%)."
 ];
 
-const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading, countryName, error }) => {
+const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading, countryName, error, warning }) => {
   const [currentFact, setCurrentFact] = useState(FUN_FACTS[0]);
   const [history, setHistory] = useState<HistoricalPoint[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -78,12 +79,10 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
 
   useEffect(() => {
     if (!isLoading) return;
-    // Pick a random start
     setCurrentFact(FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)]);
-    
     const interval = setInterval(() => {
        setCurrentFact(FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)]);
-    }, 5000); // Increased to 5s for readability
+    }, 5000);
     return () => clearInterval(interval);
   }, [isLoading]);
 
@@ -93,7 +92,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
         setLoadingHistory(true);
         // Reset collapse state when viewing a new country
         setIsHistoryOpen(false);
-        setIsForecastOpen(true); // Default open for new data
+        setIsForecastOpen(true); 
         getCountryHistory(countryName).then(points => {
             setHistory(points);
             setLoadingHistory(false);
@@ -154,7 +153,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
   return (
     <div className={clsx(
       "absolute top-0 right-0 h-full w-full md:w-[450px] transition-transform duration-300 ease-out transform glass-panel text-slate-200 shadow-2xl flex flex-col",
-      "z-[60]", // Increased z-index to overlay header on mobile
+      "z-[60]",
       isOpen ? "translate-x-0" : "translate-x-full"
     )}>
       {/* Header */}
@@ -214,7 +213,18 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
             </div>
         ) : data ? (
           <>
-            {/* Timestamp Banner - Prominently Displayed */}
+            {/* Warning Banner for Stale/Timeout Fallback */}
+            {warning && (
+                <div className="flex items-start gap-3 bg-amber-950/40 border border-amber-900/50 p-3 rounded-lg animate-[fadeIn_0.5s_ease-out]">
+                    <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-amber-200/80">
+                        <strong className="block text-amber-400 mb-1">Update Pending</strong>
+                        {warning}
+                    </div>
+                </div>
+            )}
+
+            {/* Timestamp Banner */}
             <div className="flex items-center justify-center gap-2 text-xs font-mono text-slate-400 bg-slate-900/50 py-2 rounded-lg border border-slate-800">
                 <Clock className="w-3 h-3 text-indigo-400" />
                 <span>LAST UPDATED:</span>
@@ -230,7 +240,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
                     {data.sentimentLabel} Outlook
                     </span>
                  </div>
-                 {isCached && (
+                 {isCached && !warning && (
                     <div className="flex items-center gap-1 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-full border border-slate-700">
                         <Database className="w-3 h-3" />
                         <span>CACHED</span>
@@ -241,20 +251,18 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
                 {data.stateSummary}
               </p>
               
-              {/* Score Indicator */}
               <div className="mt-4 flex items-center gap-2 text-xs font-mono uppercase opacity-75 text-slate-400 border-t border-white/10 pt-3">
                   <Activity className="w-4 h-4" />
                   <span>AI Confidence Score: {data.sentimentScore.toFixed(2)}</span>
               </div>
             </div>
 
-            {/* NEW: 7-Day Forecast Card (Collapsible) */}
+            {/* 7-Day Forecast Card (Collapsible) */}
             {data.prediction && (
                 <div className={clsx(
                     "relative rounded-xl border animate-[fadeIn_0.6s_ease-out] transition-all duration-300 overflow-hidden",
                     getPredictionColor(data.prediction)
                 )}>
-                    {/* Background Icon */}
                     <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
                         <Sparkles className="w-12 h-12" />
                     </div>
@@ -354,7 +362,6 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
                       {news.snippet}
                     </p>
 
-                    {/* Source Attribution */}
                     {news.source && (
                         <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono uppercase border-t border-slate-700/50 pt-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>

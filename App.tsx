@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import WorldMap from './components/WorldMap';
 import SidePanel from './components/SidePanel';
 import Header from './components/Header';
@@ -8,7 +8,7 @@ import { validateApiKeyConnection, KEY_COUNTRIES, normalizeCountryName } from '.
 import { syncManager, ingestSpecificCountry } from './services/scheduler';
 import { initDB, getCountryData, getAllCountryData, testConnection } from './services/db';
 import { CountrySentimentData } from './types';
-import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar } from 'lucide-react';
+import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar, Terminal, Coffee, Map as MapIcon, HeartHandshake } from 'lucide-react';
 
 function App() {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -16,9 +16,14 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [panelError, setPanelError] = useState<string | null>(null);
+  const [panelWarning, setPanelWarning] = useState<string | null>(null);
   
   // UI Modal State
   const [showAbout, setShowAbout] = useState(false);
+  const [showEasterEgg, setShowEasterEgg] = useState(false);
+
+  // Refs for managing timeouts safely
+  const loadingRef = useRef(false);
 
   const [geoData, setGeoData] = useState<any>(null);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -56,7 +61,6 @@ function App() {
         }
 
         // --- SCHEDULER LOGIC ---
-        // Setup the UI callback
         syncManager.setCallback((state) => {
              if (state.status === 'ERROR') {
                  setSyncStatus({ active: false });
@@ -64,7 +68,6 @@ function App() {
                  console.warn(`[App] Sync Scheduler Stopped: ${state.errorMessage}`);
              } else if (state.status === 'COMPLETE') {
                  setSyncStatus({ active: false });
-                 // Refresh map data to show new colors
                  getAllCountryData().then(data => {
                     const newMap: Record<string, number> = {};
                     data.forEach(d => { newMap[d.countryName] = d.sentimentScore; });
@@ -75,9 +78,7 @@ function App() {
              }
         });
 
-        // --- OPTIMIZATION FOR 20 REQUESTS PER DAY LIMIT ---
         // DISABLE AUTOMATIC BACKGROUND SYNC.
-        // We only fetch when user explicitly clicks.
         console.debug("[App] 20 RPD Limit Mode: Background sync disabled. Waiting for user interaction.");
     };
 
@@ -92,7 +93,6 @@ function App() {
     if (cachedData) {
       try {
         const data = JSON.parse(cachedData);
-        // Normalize Country Names in Cache
         if (data && data.features) {
             data.features.forEach((f: any) => {
                 f.properties.name = normalizeCountryName(f.properties.name);
@@ -106,7 +106,7 @@ function App() {
 
     if (!cachedData) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000); 
 
         fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson', { signal: controller.signal })
         .then(res => {
@@ -115,7 +115,6 @@ function App() {
         })
         .then(data => {
             clearTimeout(timeoutId);
-            // Normalize Country Names Immediately
             if (data && data.features) {
                 data.features.forEach((f: any) => {
                     f.properties.name = normalizeCountryName(f.properties.name);
@@ -134,7 +133,6 @@ function App() {
     }
   }, []);
 
-  // Derive country list for search
   const countryList = useMemo(() => {
     if (!geoData) return [];
     return geoData.features.map((f: any) => f.properties.name).sort();
@@ -162,11 +160,11 @@ function App() {
   const handleCountrySelect = useCallback(async (rawCountryName: string) => {
     const countryName = normalizeCountryName(rawCountryName);
     
-    // console.debug(`[App] User selected: ${countryName}`); // Removed for production
     setSelectedCountry(countryName);
     setIsPanelOpen(true);
     setSentimentData(null);
     setPanelError(null);
+    setPanelWarning(null);
 
     // 1. Try to get from DB first (Cheap)
     let data = await getCountryData(countryName);
@@ -175,12 +173,11 @@ function App() {
     const isStale = !data || (Date.now() - data.lastUpdated > 1000 * 60 * 60 * 22); // 22h
 
     if (isStale) {
-        // If quota is already dead, we can't fetch.
         if (quotaExceeded) {
              console.warn("[App] Quota exceeded, cannot fetch new data.");
              if (data) {
-                 // We have stale data, better than nothing
                  setSentimentData(data);
+                 setPanelWarning("Daily API Limit Reached. Displaying last available report.");
              } else {
                  setPanelError("Daily API Quota Limit Exceeded. Cannot generate new report.");
              }
@@ -189,8 +186,8 @@ function App() {
         }
 
         setIsLoading(true);
+        loadingRef.current = true;
         
-        // Trigger Sync via Scheduler to respect Rate Limits
         syncManager.prioritize(countryName);
         
         // Polling for update
@@ -200,18 +197,24 @@ function App() {
                  clearInterval(checkInterval);
                  setSentimentData(freshData);
                  setIsLoading(false);
-                 // Update map color immediately
+                 loadingRef.current = false;
                  setSentimentMap(prev => ({ ...prev, [countryName]: freshData.sentimentScore }));
              }
         }, 1000);
         
-        // Timeout after 45s (Generous for AI generation + network)
+        // Timeout after 45s - FALLBACK TO STALE DATA IF AVAILABLE
         setTimeout(() => {
-             clearInterval(checkInterval);
-             if (isLoading) {
+             if (loadingRef.current) {
+                 clearInterval(checkInterval);
                  setIsLoading(false); 
-                 if (data) setSentimentData(data);
-                 else setPanelError("Analysis timed out or connection slow.");
+                 loadingRef.current = false;
+
+                 if (data) {
+                     setSentimentData(data);
+                     setPanelWarning("Live update timed out. Displaying last available report.");
+                 } else {
+                     setPanelError("Analysis timed out or connection slow.");
+                 }
              }
         }, 45000);
         
@@ -245,15 +248,13 @@ function App() {
         alert("Daily Quota Exceeded. Cannot run test.");
         return;
     }
-    const testCountry = "Iceland"; // Small, neutral test case
+    const testCountry = "Iceland";
     if (confirm(`SECRET DEV MODE ACTIVATED\n\nRun immediate API test for ${testCountry}?`)) {
-        // Force true = Ignore freshness
         syncManager.start([testCountry], true);
         handleCountrySelect(testCountry);
     }
   };
 
-  // Helper for progress calculation
   const totalCountries = KEY_COUNTRIES.length;
   const progressPercent = syncStatus.remaining 
     ? Math.round(((totalCountries - syncStatus.remaining) / totalCountries) * 100) 
@@ -409,6 +410,39 @@ function App() {
          </div>
       )}
 
+      {/* EASTER EGG MODAL */}
+      {showEasterEgg && (
+         <div className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-6 font-mono animate-[fadeIn_0.5s_ease-out]" onClick={() => setShowEasterEgg(false)}>
+             <div className="max-w-xl w-full border border-green-500/50 p-8 rounded-lg shadow-[0_0_30px_rgba(34,197,94,0.1)] relative" onClick={e => e.stopPropagation()}>
+                <button onClick={() => setShowEasterEgg(false)} className="absolute top-4 right-4 text-green-700 hover:text-green-500"><X /></button>
+                
+                <div className="flex items-center gap-3 mb-6 border-b border-green-900/50 pb-4">
+                    <Terminal className="w-6 h-6 text-green-500" />
+                    <h2 className="text-xl text-green-500 font-bold tracking-widest">CONFIDENTIAL_LOG_404</h2>
+                </div>
+                
+                <ul className="space-y-6 text-green-400/90 text-sm leading-relaxed list-none">
+                    <li className="flex items-start gap-4">
+                        <Coffee className="w-5 h-5 mt-1 text-green-600 flex-shrink-0" />
+                        <span>A group of engineers doing random stuff hoping to change the world one day. (Mostly just turning caffeine into code).</span>
+                    </li>
+                    <li className="flex items-start gap-4">
+                        <MapIcon className="w-5 h-5 mt-1 text-green-600 flex-shrink-0" />
+                        <span>This map is not correct. Not because we intentionally did it, but because it's the only one we got that didn't crash the browser. Mercator is a lie anyway.</span>
+                    </li>
+                    <li className="flex items-start gap-4">
+                        <HeartHandshake className="w-5 h-5 mt-1 text-green-600 flex-shrink-0" />
+                        <span>We realised something: the world is getting bad day by day. Maybe you can be kind to someone today as well. It costs less than an API call.</span>
+                    </li>
+                </ul>
+
+                <div className="mt-8 pt-6 border-t border-green-900/50 text-[10px] text-green-700 text-center uppercase tracking-[0.2em]">
+                    System Status: Duct Tape Holding Steady
+                </div>
+             </div>
+         </div>
+      )}
+
       {/* ABOUT / INFO MODAL */}
       {showAbout && (
         <div className="fixed inset-0 z-[80] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
@@ -490,9 +524,14 @@ function App() {
         data={sentimentData}
         isLoading={isLoading}
         error={panelError}
+        warning={panelWarning}
       />
       
-      <Footer onSecretTest={handleSecretTest} onOpenAbout={() => setShowAbout(true)} />
+      <Footer 
+        onSecretTest={handleSecretTest} 
+        onOpenAbout={() => setShowAbout(true)} 
+        onOpenEasterEgg={() => setShowEasterEgg(true)}
+      />
     </div>
   );
 }
