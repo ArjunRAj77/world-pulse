@@ -1,4 +1,31 @@
+
 # Release Notes
+
+## v1.1.0 - "Atmospheric Awareness"
+**Release Date:** November 02, 2026
+
+This update expands the sensory capabilities of GeoPulse, introducing environmental data and a comprehensive global dashboard for deeper analysis.
+
+### 🚀 New Features
+
+#### Global Intelligence Dashboard
+- **Centralized Command Center:** A new comprehensive dashboard provides a holistic view of the world's stability.
+- **Regional Analysis:** Aggregated sentiment scores by continent (e.g., "Europe is trending +0.45").
+- **Extremes Tracking:** Instantly identify the "Most Stable" and "Most Critical" regions at a glance.
+- **Sortable Registry:** A detailed table view of all analyzed countries with filtering, sorting, and CSV export.
+
+#### Environmental Sensing
+- **Air Quality Index (AQI):** The AI now retrieves real-time air quality data for capital cities using Google Search, displayed with color-coded health indicators in the country side panel.
+
+#### UX Enhancements
+- **Auto Pilot Tooltip:** Added contextual information for the Auto Pilot mode to explain its "Presentation Mode" functionality.
+- **Layout Optimizations:** Improved information hierarchy in the Global Summary view, prioritizing critical stability metrics.
+
+### 🔧 Improvements
+- Enhanced sorting logic in the data registry.
+- Refined tooltip interactions on the world map.
+
+---
 
 ## v1.0.0 - "Genesis Pulse" (Public Beta)
 **Release Date:** October 26, 2026
