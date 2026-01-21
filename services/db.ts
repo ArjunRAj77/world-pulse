@@ -59,7 +59,12 @@ export const saveCountryData = async (data: CountrySentimentData) => {
           ...data,
           archivedDate: today
       });
-  } catch (e) {
+  } catch (e: any) {
+      // Suppress offline/network errors for background saves
+      if (e.code === 'unavailable' || (e.message && e.message.includes('offline'))) {
+          console.debug(`[DB-Firestore] Offline - write queued/skipped for ${data.countryName}`);
+          return;
+      }
       console.error(`[DB-Firestore] WRITE FAILED for ${data.countryName}:`, e);
   }
 };
@@ -84,7 +89,12 @@ export const getCountryData = async (countryName: string): Promise<CountrySentim
       } else {
           return undefined;
       }
-  } catch (e) {
+  } catch (e: any) {
+      // Gracefully handle offline status
+      if (e.code === 'unavailable' || (e.message && e.message.includes('offline'))) {
+           console.warn(`[DB-Firestore] Offline mode - skipping cache check for ${countryName}`);
+           return undefined;
+      }
       console.error(`[DB-Firestore] READ ERROR for ${countryName}:`, e);
       return undefined;
   }
@@ -118,7 +128,10 @@ export const getCountryHistory = async (countryName: string): Promise<Historical
 
         // Sort ascending by time
         return history.sort((a, b) => a.timestamp - b.timestamp);
-    } catch (e) {
+    } catch (e: any) {
+        if (e.code === 'unavailable' || (e.message && e.message.includes('offline'))) {
+            return [];
+        }
         console.error(`[DB-Firestore] HISTORY ERROR for ${countryName}:`, e);
         return [];
     }
@@ -140,7 +153,11 @@ export const getAllCountryData = async (): Promise<CountrySentimentData[]> => {
           memoryCache.set(item.countryName, item);
       });
       return data;
-  } catch (e) {
+  } catch (e: any) {
+      if (e.code === 'unavailable' || (e.message && e.message.includes('offline'))) {
+          // Fallback to memory cache if offline
+          return Array.from(memoryCache.values());
+      }
       console.error("[DB-Firestore] Fetch ALL Error:", e);
       return Array.from(memoryCache.values());
   }

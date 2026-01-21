@@ -4,6 +4,7 @@ import WorldMap from './components/WorldMap';
 import SidePanel from './components/SidePanel';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import GlobalSummary from './components/GlobalSummary';
 import { validateApiKeyConnection, KEY_COUNTRIES, normalizeCountryName } from './services/geminiService';
 import { syncManager, ingestSpecificCountry } from './services/scheduler';
 import { initDB, getCountryData, getAllCountryData, testConnection } from './services/db';
@@ -21,6 +22,7 @@ function App() {
   // UI Modal State
   const [showAbout, setShowAbout] = useState(false);
   const [showEasterEgg, setShowEasterEgg] = useState(false);
+  const [showGlobalSummary, setShowGlobalSummary] = useState(false);
 
   // Refs for managing timeouts safely
   const loadingRef = useRef(false);
@@ -443,6 +445,14 @@ function App() {
          </div>
       )}
 
+      {/* GLOBAL SUMMARY MODAL (NEW) */}
+      {showGlobalSummary && (
+          <GlobalSummary 
+            onClose={() => setShowGlobalSummary(false)}
+            geoData={geoData}
+          />
+      )}
+
       {/* ABOUT / INFO MODAL */}
       {showAbout && (
         <div className="fixed inset-0 z-[80] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
@@ -531,6 +541,7 @@ function App() {
         onSecretTest={handleSecretTest} 
         onOpenAbout={() => setShowAbout(true)} 
         onOpenEasterEgg={() => setShowEasterEgg(true)}
+        onOpenGlobalSummary={() => setShowGlobalSummary(true)}
       />
     </div>
   );
