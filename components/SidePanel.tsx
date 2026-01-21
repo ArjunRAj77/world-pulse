@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink, Ban, History, ChevronDown, ChevronUp, ArrowRight, Sparkles, AlertCircle, PieChart, DollarSign, Landmark, Users } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink, Ban, History, ChevronDown, ChevronUp, ArrowRight, Sparkles, AlertCircle, PieChart, DollarSign, Landmark, Users, Wind, ThermometerSun } from 'lucide-react';
 import { CountrySentimentData, SentimentType, HistoricalPoint, PredictionType } from '../types';
 import { getCountryHistory } from '../services/db';
 import TrendChart from './TrendChart';
@@ -95,6 +95,49 @@ const SectorBar = ({ label, score, icon }: { label: string, score: number, icon:
                     className={clsx("h-full transition-all duration-1000 ease-out", colorClass)}
                     style={{ width: `${percentage}%` }}
                 />
+            </div>
+        </div>
+    );
+};
+
+const AqiIndicator = ({ aqi }: { aqi: number }) => {
+    let label = 'Good';
+    let colorClass = 'text-emerald-400';
+    let bgClass = 'bg-emerald-500';
+    let widthPercent = Math.min(100, (aqi / 300) * 100);
+
+    if (aqi > 50) { label = 'Moderate'; colorClass = 'text-yellow-400'; bgClass = 'bg-yellow-500'; }
+    if (aqi > 100) { label = 'Unhealthy (Sensitive)'; colorClass = 'text-orange-400'; bgClass = 'bg-orange-500'; }
+    if (aqi > 150) { label = 'Unhealthy'; colorClass = 'text-red-400'; bgClass = 'bg-red-500'; }
+    if (aqi > 200) { label = 'Very Unhealthy'; colorClass = 'text-purple-400'; bgClass = 'bg-purple-500'; }
+    if (aqi > 300) { label = 'Hazardous'; colorClass = 'text-rose-600'; bgClass = 'bg-rose-900'; }
+
+    return (
+        <div className="bg-slate-900/40 border border-slate-800 p-4 rounded-xl animate-[fadeIn_0.6s_ease-out]">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <Wind className="w-3 h-3" />
+                Air Quality (AQI)
+            </h3>
+            <div className="flex items-center justify-between mb-2">
+                <div className="text-2xl font-bold text-white flex items-baseline gap-2">
+                    {aqi}
+                    <span className={clsx("text-xs font-bold uppercase tracking-wide", colorClass)}>
+                        {label}
+                    </span>
+                </div>
+            </div>
+            
+            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700/50 relative">
+                 {/* Gradient Background for Context */}
+                 <div className="absolute inset-0 opacity-20 bg-gradient-to-r from-emerald-500 via-yellow-500 to-purple-500"></div>
+                 <div 
+                    className={clsx("h-full relative shadow-[0_0_10px_currentColor]", bgClass)}
+                    style={{ width: `${Math.max(5, widthPercent)}%` }}
+                 />
+            </div>
+            <div className="flex justify-between text-[10px] text-slate-600 font-mono mt-1">
+                <span>0</span>
+                <span>500</span>
             </div>
         </div>
     );
@@ -288,6 +331,11 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
                   <span>AI Confidence Score: {data.sentimentScore.toFixed(2)}</span>
               </div>
             </div>
+
+            {/* AQI Indicator */}
+            {data.aqi !== undefined && (
+                <AqiIndicator aqi={data.aqi} />
+            )}
 
             {/* Sector Analysis Card */}
             {data.sectorBreakdown && (

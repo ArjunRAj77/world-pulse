@@ -320,37 +320,7 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
                                 </div>
                             </div>
 
-                            {/* REGIONAL ANALYSIS CARD (NEW) */}
-                            {regionalData.length > 0 && (
-                                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
-                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                        <Globe className="w-3 h-3" /> Regional Stability
-                                    </h3>
-                                    <div className="space-y-3">
-                                        {regionalData.map(r => (
-                                            <div key={r.name}>
-                                                <div className="flex justify-between text-xs mb-1">
-                                                    <span className="text-slate-300 font-semibold">{r.name}</span>
-                                                    <span className={clsx("font-mono font-bold", r.avg > 0 ? "text-emerald-400" : r.avg < 0 ? "text-red-400" : "text-sky-400")}>
-                                                        {r.avg > 0 ? '+' : ''}{r.avg.toFixed(2)}
-                                                    </span>
-                                                </div>
-                                                <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden border border-slate-600/30">
-                                                    <div 
-                                                        className={clsx("h-full transition-all duration-500", r.avg > 0.05 ? "bg-emerald-500" : r.avg < -0.05 ? "bg-red-500" : "bg-sky-500")}
-                                                        style={{ width: `${Math.min(100, Math.max(5, ((r.avg + 1) / 2) * 100))}%` }}
-                                                    />
-                                                </div>
-                                                <div className="text-[10px] text-slate-500 mt-0.5 text-right">
-                                                    {r.count} reports
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Extremes Cards */}
+                            {/* Extremes Cards (Moved up as requested) */}
                             <div className="grid grid-cols-2 gap-4">
                                 {/* Most Unstable */}
                                 <div className="bg-red-950/20 border border-red-900/50 p-4 rounded-xl">
@@ -388,6 +358,36 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
                                     )}
                                 </div>
                             </div>
+
+                            {/* REGIONAL ANALYSIS CARD */}
+                            {regionalData.length > 0 && (
+                                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <Globe className="w-3 h-3" /> Regional Stability
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {regionalData.map(r => (
+                                            <div key={r.name}>
+                                                <div className="flex justify-between text-xs mb-1">
+                                                    <span className="text-slate-300 font-semibold">{r.name}</span>
+                                                    <span className={clsx("font-mono font-bold", r.avg > 0 ? "text-emerald-400" : r.avg < 0 ? "text-red-400" : "text-sky-400")}>
+                                                        {r.avg > 0 ? '+' : ''}{r.avg.toFixed(2)}
+                                                    </span>
+                                                </div>
+                                                <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden border border-slate-600/30">
+                                                    <div 
+                                                        className={clsx("h-full transition-all duration-500", r.avg > 0.05 ? "bg-emerald-500" : r.avg < -0.05 ? "bg-red-500" : "bg-sky-500")}
+                                                        style={{ width: `${Math.min(100, Math.max(5, ((r.avg + 1) / 2) * 100))}%` }}
+                                                    />
+                                                </div>
+                                                <div className="text-[10px] text-slate-500 mt-0.5 text-right">
+                                                    {r.count} reports
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* RIGHT COLUMN: Data Table (8 Cols) */}

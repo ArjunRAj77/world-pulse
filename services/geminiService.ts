@@ -56,12 +56,13 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
     try {
         const response = await ai.models.generateContent({
             model: "gemini-3-flash-preview",
-            contents: `Analyze sentiment and news for ${countryName}. 
+            contents: `Analyze sentiment, news, and environment for ${countryName}. 
             1. Provide sentimentScore (-1.0 to 1.0), sentimentLabel (POSITIVE, NEGATIVE, NEUTRAL).
             2. Provide stateSummary (1 sentence).
             3. Predict stability for next 7 days: prediction (IMPROVING, DETERIORATING, STABLE) and predictionRationale (1 short sentence).
             4. Analyze sector sentiment (-1.0 to 1.0): economy, politics, civil.
-            5. Provide 3-5 headlines.`,
+            5. Provide the approximate current Air Quality Index (AQI) for the capital city (US AQI standard 0-500).
+            6. Provide 3-5 headlines.`,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -82,6 +83,7 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
                                 civil: { type: Type.NUMBER, description: "Civil society/social score -1.0 to 1.0" }
                             }
                         },
+                        aqi: { type: Type.NUMBER, description: "US AQI (0-500) for capital city" },
                         headlines: {
                             type: Type.ARRAY,
                             items: {
@@ -117,6 +119,7 @@ export const fetchCountrySentiment = async (countryName: string): Promise<Countr
             prediction: data.prediction as PredictionType,
             predictionRationale: data.predictionRationale,
             sectorBreakdown: data.sectorBreakdown,
+            aqi: data.aqi,
             headlines: data.headlines || [],
             lastUpdated: Date.now()
         };

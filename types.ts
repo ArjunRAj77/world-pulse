@@ -39,6 +39,9 @@ export interface CountrySentimentData {
   // New Sector Fields
   sectorBreakdown?: SectorSentiment;
 
+  // Environmental Data
+  aqi?: number; // US AQI Standard (0-500)
+
   headlines: NewsHeadline[];
   lastUpdated: number;
 }
