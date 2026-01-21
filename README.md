@@ -1,96 +1,74 @@
 
-# GeoPulse 🌍
+# Geo-Pulse 🌍
 
-> **A living map of global events powered by AI.**
+> **Checking Earth's Vibe, One Headline at a Time.**
 
-GeoPulse is an interactive real-time visualization tool that transforms raw geopolitical news into a living heatmap. Powered by **Google Gemini 3 Flash** and **Google Search Grounding**, it analyzes live headlines, socio-political events, and regional stability to generate an AI Confidence Score for every country on Earth.
+Yo! Welcome to **Geo-Pulse**.
 
-## 🛡️ Security Hardening (CRITICAL)
+Let's be real—keeping up with global news is exhausting. **Geo-Pulse** is a real-time dashboard that uses AI to read the internet for you and tell you how the world is feeling. It turns complex geopolitics into a simple, color-coded map.
 
-Since this application runs client-side, your API keys are visible to the browser. You **MUST** implement the following restrictions to prevent abuse.
+## 🧐 What is this?
 
-### 1. Restrict the Gemini API Key
-Prevent unauthorized usage of your API Key by restricting it to your specific domains.
+Think of it as a **Mood Ring for the Planet**. 
+We grab live news, feed it to **Google Gemini 3 Flash**, and it spits back a "Sentiment Score" for every country.
 
-1. Go to **[Google Cloud Console > Credentials](https://console.cloud.google.com/apis/credentials)**.
-2. Click on your **Gemini API Key**.
-3. Under **Application restrictions**, select **Websites (HTTP referrers)**.
-4. Add the following items:
-   - `http://localhost:5173/*` (for local development)
-   - `https://your-production-domain.com/*` (your deployed URL)
-5. Under **API restrictions**, select **Restrict key** and check only:
-   - **Generative Language API**
-6. Save changes.
+- **Green?** Doing great. Best life. (Economic booms, peace treaties).
+- **Red?** Chaos. Maybe avoid for now. (Conflict, instability).
+- **Blue?** Meh. Business as usual.
 
-### 2. Secure Firebase Firestore
-Prevent malicious data injection or database wiping.
+## ✨ Cool Stuff It Does
 
-1. Go to **Firebase Console > Firestore Database > Rules**.
-2. Copy the contents of the `firestore.rules` file included in this project.
-3. Paste it into the editor and click **Publish**.
-4. **Result**: 
-   - Public users can only write data that matches the strict schema (e.g., specific country names, scores between -1 and 1).
-   - Public users cannot delete the database.
-   - Public users cannot modify historical archives.
+### 1. The Living Map 🗺️
+It's a fully interactive vector map. Zoom in, pan around, and hover over countries to see their vitals. We use smart rendering so it doesn't kill your browser battery.
 
-## ✨ Features
+### 2. AI News Anchor 🤖
+Click a country, and our AI:
+- **Reads the News:** Scours the web for the latest headlines (literally from today).
+- **Summarizes the Drama:** Gives you a one-sentence breakdown of what's happening.
+- **Predicts the Future:** Analyzes trends to guess if next week will be better or worse.
 
-- **Interactive World Map**: A fully responsive D3.js vector map allowing exploration of 180+ countries.
-- **Real-Time AI Analysis**: Instantly generates concise geopolitical summaries using Gemini 3 Flash.
-- **Sentiment Heatmap**: Visualizes global stability with dynamic color coding (Emerald/Blue/Red).
-- **Historical Timeline**: Visualizes sentiment trends over the last 30 days.
-- **Live News Feed**: Fetches and categorizes the latest headlines using Google Search Grounding.
-- **Smart Caching**: Utilizes Firebase Firestore to cache reports (22h validity) to minimize API usage and latency.
-- **Rate Limit Protection**: Built-in scheduler and quota management to gracefully handle API limits.
+### 3. Features You'll Love
+- **Air Quality Check:** Tells you if you should wear a mask in the capital city right now.
+- **Time Travel:** We save data daily, so you can see a graph of how a country's mood has changed over the last month.
+- **Auto-Pilot Mode:** Hit the button, sit back, and let the app take you on a guided tour of the world. Perfect for hallway screens.
+- **Global Dashboard:** A big table view to see who is winning at "Stability" and who needs a hug.
 
-## 🛠️ Tech Stack
+---
 
-- **Frontend**: React 18, TypeScript, TailwindCSS
-- **Visualization**: D3.js (Data-Driven Documents)
-- **AI Core**: Google GenAI SDK (Gemini 3 Flash Preview)
-- **Database**: Firebase Firestore (Caching & History)
-- **Build Tool**: Vite
+## 🛠️ The Tech Stack (For the Nerds)
 
-## 🚀 Setup & Installation
+This isn't just a pretty face. It's built with some solid engineering:
 
-1. **Clone the repository**
+- **Frontend:** React 18 + TypeScript (Because we like type safety).
+- **AI Brain:** Google GenAI SDK (`gemini-3-flash-preview`). It's fast and smart.
+- **Grounding:** Google Search Tool (So the AI doesn't hallucinate fake news).
+- **Database:** Firebase Firestore. We cache reports for 22 hours so we don't go broke on API limits.
+- **Visuals:** D3.js (For that buttery smooth map interaction).
+
+---
+
+## 🚀 How to Run It
+
+1. **Clone this repo:**
    ```bash
    git clone https://github.com/yourusername/geopulse.git
-   cd geopulse
    ```
 
-2. **Install Dependencies**
+2. **Install the goods:**
    ```bash
    npm install
    ```
 
-3. **Configure Environment**
-   Create a `.env` file in the root directory.
-   
-   ```env
-   # Required
-   VITE_GEMINI_API_KEY=your_gemini_api_key_here
+3. **Add your keys:**
+   Create a `.env` file and add your `VITE_GEMINI_API_KEY`.
 
-   # Optional (for caching feature)
-   VITE_FIREBASE_API_KEY=...
-   VITE_FIREBASE_PROJECT_ID=...
-   # ... add other firebase config keys
-   ```
-
-4. **Run Development Server**
+4. **Run it:**
    ```bash
    npm run dev
    ```
 
-## 🧠 How It Works
+5. **Vibe check the world.**
 
-1. **Selection**: User clicks a country on the map.
-2. **Cache Check**: The app checks Firestore for an analysis generated in the last 22 hours.
-3. **AI Generation**: If no fresh data exists, a request is sent to Gemini 3 Flash.
-4. **Grounding**: Gemini uses Google Search to find recent news articles.
-5. **Synthesis**: The model assigns a Sentiment Score (-1.0 to 1.0) and summarizes the state of affairs.
-6. **Visualization**: The map updates to reflect the new sentiment score.
+---
 
-## 📄 License
-
-MIT License © 2026 Team Inevitables
+*Built with ☕ and 🤖 by Team Inevitables.*
