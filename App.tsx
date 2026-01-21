@@ -24,6 +24,9 @@ function App() {
   const [showEasterEgg, setShowEasterEgg] = useState(false);
   const [showGlobalSummary, setShowGlobalSummary] = useState(false);
 
+  // Auto Pilot State
+  const [isAutoPilot, setIsAutoPilot] = useState(false);
+
   // Refs for managing timeouts safely
   const loadingRef = useRef(false);
 
@@ -159,9 +162,14 @@ function App() {
   }, []);
 
   // 4. Handle Selection
-  const handleCountrySelect = useCallback(async (rawCountryName: string) => {
+  const handleCountrySelect = useCallback(async (rawCountryName: string, isAuto: boolean = false) => {
     const countryName = normalizeCountryName(rawCountryName);
     
+    // Manual intervention stops auto pilot
+    if (!isAuto) {
+        setIsAutoPilot(false);
+    }
+
     setSelectedCountry(countryName);
     setIsPanelOpen(true);
     setSentimentData(null);
@@ -226,7 +234,48 @@ function App() {
     }
   }, [isLoading, quotaExceeded]);
 
+  // Auto Pilot Loop
+  useEffect(() => {
+    if (!isAutoPilot) return;
+
+    // Filter list to only include countries we have data for (better presentation)
+    // If we have no cached data, fallback to KEY_COUNTRIES
+    const cachedCountries = Object.keys(sentimentMap);
+    const candidateList = cachedCountries.length > 0 ? cachedCountries : KEY_COUNTRIES;
+
+    if (candidateList.length === 0) return;
+
+    // Find current index
+    let currentIndex = selectedCountry ? candidateList.indexOf(selectedCountry) : -1;
+
+    const interval = setInterval(() => {
+        // Move to next
+        currentIndex = (currentIndex + 1) % candidateList.length;
+        const nextCountry = candidateList[currentIndex];
+        handleCountrySelect(nextCountry, true);
+    }, 15000); // 15 seconds per country
+
+    return () => clearInterval(interval);
+  }, [isAutoPilot, sentimentMap, selectedCountry, handleCountrySelect]);
+
+  const toggleAutoPilot = () => {
+      if (isAutoPilot) {
+          setIsAutoPilot(false);
+      } else {
+          setIsAutoPilot(true);
+          // If no country selected, start immediately
+          if (!selectedCountry) {
+              const cached = Object.keys(sentimentMap);
+              const list = cached.length > 0 ? cached : KEY_COUNTRIES;
+              if (list.length > 0) {
+                  handleCountrySelect(list[0], true);
+              }
+          }
+      }
+  };
+
   const handleClosePanel = () => {
+    setIsAutoPilot(false);
     setIsPanelOpen(false);
     setSelectedCountry(null);
   };
@@ -542,6 +591,8 @@ function App() {
         onOpenAbout={() => setShowAbout(true)} 
         onOpenEasterEgg={() => setShowEasterEgg(true)}
         onOpenGlobalSummary={() => setShowGlobalSummary(true)}
+        isAutoPilot={isAutoPilot}
+        onToggleAutoPilot={toggleAutoPilot}
       />
     </div>
   );

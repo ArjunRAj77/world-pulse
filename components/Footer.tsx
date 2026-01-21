@@ -1,15 +1,25 @@
 
 import React, { useState } from 'react';
-import { Heart, Zap, Info, PieChart, HelpCircle } from 'lucide-react';
+import { Heart, Zap, Info, PieChart, HelpCircle, Plane, Square } from 'lucide-react';
+import clsx from 'clsx';
 
 interface FooterProps {
     onSecretTest: () => void;
     onOpenAbout: () => void;
     onOpenEasterEgg: () => void;
     onOpenGlobalSummary: () => void;
+    isAutoPilot: boolean;
+    onToggleAutoPilot: () => void;
 }
 
-const Footer: React.FC<FooterProps> = ({ onSecretTest, onOpenAbout, onOpenEasterEgg, onOpenGlobalSummary }) => {
+const Footer: React.FC<FooterProps> = ({ 
+    onSecretTest, 
+    onOpenAbout, 
+    onOpenEasterEgg, 
+    onOpenGlobalSummary,
+    isAutoPilot,
+    onToggleAutoPilot
+}) => {
     const [clickCount, setClickCount] = useState(0);
 
     const handleSecretClick = () => {
@@ -65,6 +75,38 @@ const Footer: React.FC<FooterProps> = ({ onSecretTest, onOpenAbout, onOpenEaster
                         Double-tap for Team • 5x for Dashboard
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-700"></div>
                     </div>
+                </div>
+            </div>
+
+            {/* Auto Pilot Button with Tooltip */}
+            <div className="relative group/autopilot ml-4">
+                <button 
+                    onClick={onToggleAutoPilot}
+                    className={clsx(
+                        "px-2 py-1 rounded-md flex items-center gap-2 transition-all duration-300 border",
+                        isAutoPilot 
+                            ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/50 shadow-[0_0_10px_rgba(99,102,241,0.3)]" 
+                            : "bg-transparent text-slate-500 border-transparent hover:bg-slate-800 hover:text-slate-300"
+                    )}
+                >
+                    {isAutoPilot ? (
+                        <>
+                            <Square className="w-3 h-3 fill-current" />
+                            <span className="text-[10px] font-bold">STOP AUTO</span>
+                        </>
+                    ) : (
+                        <>
+                            <Plane className="w-3 h-3" />
+                            <span className="text-[10px] font-bold hidden md:inline">AUTO PILOT</span>
+                        </>
+                    )}
+                </button>
+
+                {/* Info Tooltip */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-max max-w-[200px] opacity-0 group-hover/autopilot:opacity-100 transition-opacity duration-200 bg-slate-900 text-slate-300 text-[10px] px-3 py-2 rounded-lg shadow-xl border border-slate-700 pointer-events-none text-center z-50 leading-tight backdrop-blur-md">
+                    <span className="font-bold text-indigo-400 block mb-1">Presentation Mode</span>
+                    Automatically cycles through cached regions.
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-700"></div>
                 </div>
             </div>
 

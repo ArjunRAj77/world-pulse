@@ -14,6 +14,24 @@ interface GlobalSummaryProps {
 type SortField = 'name' | 'score' | 'updated';
 type FilterType = 'ALL' | 'STABLE' | 'UNSTABLE' | 'NEUTRAL';
 
+// --- Region Mapping Helper ---
+const REGIONS: Record<string, string[]> = {
+  "North America": ["United States", "Canada", "Mexico", "Cuba", "Guatemala", "Haiti", "Dominican Republic", "Honduras", "Nicaragua", "El Salvador", "Costa Rica", "Panama", "Jamaica", "Belize", "Bahamas"],
+  "South America": ["Brazil", "Argentina", "Colombia", "Peru", "Chile", "Venezuela", "Ecuador", "Bolivia", "Paraguay", "Uruguay", "Guyana", "Suriname"],
+  "Europe": ["Russia", "Germany", "United Kingdom", "France", "Italy", "Spain", "Ukraine", "Poland", "Romania", "Netherlands", "Belgium", "Czech Republic", "Greece", "Portugal", "Sweden", "Hungary", "Belarus", "Austria", "Serbia", "Switzerland", "Bulgaria", "Denmark", "Finland", "Slovakia", "Norway", "Ireland", "Croatia", "Moldova", "Bosnia and Herzegovina", "Albania", "Lithuania", "North Macedonia", "Slovenia", "Latvia", "Estonia", "Iceland"],
+  "Asia": ["China", "India", "Indonesia", "Pakistan", "Bangladesh", "Japan", "Philippines", "Vietnam", "Turkey", "Thailand", "Myanmar", "South Korea", "Afghanistan", "Uzbekistan", "Malaysia", "Nepal", "North Korea", "Taiwan", "Sri Lanka", "Kazakhstan", "Cambodia", "Singapore", "Mongolia"],
+  "Middle East": ["Iran", "Egypt", "Saudi Arabia", "Yemen", "Iraq", "Syria", "Jordan", "Israel", "Lebanon", "Palestine", "Oman", "Kuwait", "Qatar", "Bahrain", "United Arab Emirates"],
+  "Africa": ["Nigeria", "Ethiopia", "Democratic Republic of the Congo", "Tanzania", "South Africa", "Kenya", "Uganda", "Algeria", "Sudan", "Morocco", "Angola", "Mozambique", "Ghana", "Madagascar", "Cameroon", "Côte d'Ivoire", "Niger", "Burkina Faso", "Mali", "Somalia", "Zimbabwe", "Rwanda", "Tunisia", "Libya"],
+  "Oceania": ["Australia", "Papua New Guinea", "New Zealand", "Fiji"]
+};
+
+const getRegion = (countryName: string): string => {
+    for (const [region, countries] of Object.entries(REGIONS)) {
+        if (countries.includes(countryName)) return region;
+    }
+    return "Other";
+};
+
 const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
     const [analyzedData, setAnalyzedData] = useState<CountrySentimentData[]>([]);
     const [sortField, setSortField] = useState<SortField>('updated');
@@ -30,8 +48,8 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
         load();
     }, []);
 
-    // Compute Stats & Extremes
-    const { stats, extremes, headlines } = useMemo(() => {
+    // Compute Stats, Extremes, & Regional Data
+    const { stats, extremes, headlines, regionalData } = useMemo(() => {
         const allCountries: string[] = geoData?.features?.map((f: any) => f.properties.name) || [];
         
         let positive = 0;
@@ -41,11 +59,30 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
         const validData = analyzedData.filter(d => d.sentimentScore !== undefined);
         const sortedByScore = [...validData].sort((a, b) => a.sentimentScore - b.sentimentScore);
 
+        // Regional Calculations
+        const regionStats: Record<string, { sum: number; count: number }> = {};
+
         validData.forEach(d => {
             if (d.sentimentScore > 0.05) positive++;
             else if (d.sentimentScore < -0.05) negative++;
             else neutral++;
+
+            // Region Aggregation
+            const region = getRegion(d.countryName);
+            if (region !== "Other") {
+                if (!regionStats[region]) regionStats[region] = { sum: 0, count: 0 };
+                regionStats[region].sum += d.sentimentScore;
+                regionStats[region].count += 1;
+            }
         });
+
+        const regionsFormatted = Object.entries(regionStats)
+            .map(([name, val]) => ({
+                name,
+                avg: val.sum / val.count,
+                count: val.count
+            }))
+            .sort((a, b) => b.avg - a.avg);
 
         // "Unknown" are countries in GeoJSON that are NOT in DB
         const unknownCount = Math.max(0, allCountries.length - analyzedData.length);
@@ -67,7 +104,8 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
                 mostStable: sortedByScore.length > 0 ? sortedByScore[sortedByScore.length - 1] : null,
                 mostUnstable: sortedByScore.length > 0 ? sortedByScore[0] : null
             },
-            headlines: allHeadlines
+            headlines: allHeadlines,
+            regionalData: regionsFormatted
         };
     }, [analyzedData, geoData]);
 
@@ -281,6 +319,36 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* REGIONAL ANALYSIS CARD (NEW) */}
+                            {regionalData.length > 0 && (
+                                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <Globe className="w-3 h-3" /> Regional Stability
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {regionalData.map(r => (
+                                            <div key={r.name}>
+                                                <div className="flex justify-between text-xs mb-1">
+                                                    <span className="text-slate-300 font-semibold">{r.name}</span>
+                                                    <span className={clsx("font-mono font-bold", r.avg > 0 ? "text-emerald-400" : r.avg < 0 ? "text-red-400" : "text-sky-400")}>
+                                                        {r.avg > 0 ? '+' : ''}{r.avg.toFixed(2)}
+                                                    </span>
+                                                </div>
+                                                <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden border border-slate-600/30">
+                                                    <div 
+                                                        className={clsx("h-full transition-all duration-500", r.avg > 0.05 ? "bg-emerald-500" : r.avg < -0.05 ? "bg-red-500" : "bg-sky-500")}
+                                                        style={{ width: `${Math.min(100, Math.max(5, ((r.avg + 1) / 2) * 100))}%` }}
+                                                    />
+                                                </div>
+                                                <div className="text-[10px] text-slate-500 mt-0.5 text-right">
+                                                    {r.count} reports
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Extremes Cards */}
                             <div className="grid grid-cols-2 gap-4">
