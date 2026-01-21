@@ -245,13 +245,17 @@ function App() {
 
     if (candidateList.length === 0) return;
 
-    // Find current index
-    let currentIndex = selectedCountry ? candidateList.indexOf(selectedCountry) : -1;
-
     const interval = setInterval(() => {
-        // Move to next
-        currentIndex = (currentIndex + 1) % candidateList.length;
-        const nextCountry = candidateList[currentIndex];
+        // Randomly select next country
+        let nextIndex = Math.floor(Math.random() * candidateList.length);
+        let nextCountry = candidateList[nextIndex];
+        
+        // Avoid selecting the same country twice in a row if list has > 1 item
+        if (candidateList.length > 1 && nextCountry === selectedCountry) {
+            nextIndex = (nextIndex + 1) % candidateList.length;
+            nextCountry = candidateList[nextIndex];
+        }
+
         handleCountrySelect(nextCountry, true);
     }, 15000); // 15 seconds per country
 
@@ -263,12 +267,13 @@ function App() {
           setIsAutoPilot(false);
       } else {
           setIsAutoPilot(true);
-          // If no country selected, start immediately
+          // If no country selected, start immediately with a random one
           if (!selectedCountry) {
               const cached = Object.keys(sentimentMap);
               const list = cached.length > 0 ? cached : KEY_COUNTRIES;
               if (list.length > 0) {
-                  handleCountrySelect(list[0], true);
+                  const randomIndex = Math.floor(Math.random() * list.length);
+                  handleCountrySelect(list[randomIndex], true);
               }
           }
       }

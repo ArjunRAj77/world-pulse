@@ -33,7 +33,8 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, currentScore }) => {
     // Only keep last 14 points for visual clarity
     chartData = chartData.slice(-14);
 
-    const margin = { top: 10, right: 10, bottom: 20, left: 30 };
+    // Increased left margin to fit text labels
+    const margin = { top: 10, right: 10, bottom: 20, left: 40 };
     const width = svgRef.current.clientWidth - margin.left - margin.right;
     const height = 120 - margin.top - margin.bottom;
 
@@ -74,12 +75,25 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, currentScore }) => {
         .attr("transform", `translate(0,${height})`)
         .call(d3.axisBottom(x).ticks(3).tickFormat(d3.timeFormat("%b %d") as any))
         .attr("color", "#64748b")
+        .style("font-family", "monospace")
+        .style("font-size", "9px")
         .select(".domain").remove();
 
-    // Y Axis (Score)
+    // Y Axis (Score) -> UPDATED TO SHOW TEXT LABELS
     g.append("g")
-        .call(d3.axisLeft(y).ticks(3))
-        .attr("color", "#64748b")
+        .call(d3.axisLeft(y)
+            .tickValues([-1, 0, 1]) // Explicitly set ticks at top, middle, bottom
+            .tickFormat((d) => {
+                if (d === 1) return "GOOD";
+                if (d === 0) return "AVG";
+                if (d === -1) return "BAD";
+                return "";
+            })
+        )
+        .attr("color", "#94a3b8")
+        .style("font-family", "monospace")
+        .style("font-size", "10px")
+        .style("font-weight", "bold")
         .select(".domain").remove();
 
     // Zero Line (Neutral)
