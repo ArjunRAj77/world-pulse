@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink, Ban, History, ChevronDown, ChevronUp, ArrowRight, Sparkles, AlertCircle, PieChart, DollarSign, Landmark, Users, Wind, ThermometerSun } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, Minus, Newspaper, Activity, Clock, Loader2, Lightbulb, Database, ExternalLink, Ban, History, ChevronDown, ChevronUp, ArrowRight, Sparkles, AlertCircle, PieChart, DollarSign, Landmark, Users, Wind, ThermometerSun, Radar, Scan } from 'lucide-react';
 import { CountrySentimentData, SentimentType, HistoricalPoint, PredictionType } from '../types';
 import { getCountryHistory } from '../services/db';
 import TrendChart from './TrendChart';
@@ -68,6 +68,16 @@ const FUN_FACTS = [
   "Suriname is the most forested country in the world (98%)."
 ];
 
+const LOADING_STAGES = [
+    "Establishing Secure Uplink...",
+    "Triangulating Coordinates...",
+    "Intercepting News Feeds...",
+    "Analyzing Regional Sentiment...",
+    "Running Predictive Models...",
+    "Calibrating Sensors...",
+    "Finalizing Intelligence Report..."
+];
+
 const SectorBar = ({ label, score, icon }: { label: string, score: number, icon: React.ReactNode }) => {
     // Normalize -1 to 1  ->  0% to 100%
     const percentage = Math.max(0, Math.min(100, ((score + 1) / 2) * 100));
@@ -121,8 +131,9 @@ const AqiIndicator = ({ aqi }: { aqi: number }) => {
             <div className="flex items-center justify-between mb-2">
                 <div className="text-2xl font-bold text-white flex items-baseline gap-2">
                     {aqi}
-                    <span className={clsx("text-xs font-bold uppercase tracking-wide", colorClass)}>
-                        {label}
+                    <span className="text-xs font-bold uppercase tracking-wide flex items-center gap-1.5">
+                        <span className={clsx("w-2 h-2 rounded-full", bgClass)}></span>
+                        <span className={colorClass}>{label}</span>
                     </span>
                 </div>
             </div>
@@ -147,11 +158,13 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
   const [currentFact, setCurrentFact] = useState(FUN_FACTS[0]);
   const [history, setHistory] = useState<HistoricalPoint[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingStage, setLoadingStage] = useState(0);
   
   // Collapse state
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isForecastOpen, setIsForecastOpen] = useState(true);
 
+  // Cycling facts
   useEffect(() => {
     if (!isLoading) return;
     setCurrentFact(FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)]);
@@ -159,6 +172,17 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
        setCurrentFact(FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)]);
     }, 5000);
     return () => clearInterval(interval);
+  }, [isLoading]);
+
+  // Cycling loading text
+  useEffect(() => {
+    if (isLoading) {
+        setLoadingStage(0);
+        const interval = setInterval(() => {
+            setLoadingStage(prev => (prev + 1) % LOADING_STAGES.length);
+        }, 1200);
+        return () => clearInterval(interval);
+    }
   }, [isLoading]);
 
   // Fetch History when data loads
@@ -181,6 +205,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
     switch (label) {
       case SentimentType.POSITIVE: return 'text-emerald-400 border-emerald-900 bg-emerald-950/30';
       case SentimentType.NEGATIVE: return 'text-red-400 border-red-900 bg-red-950/30';
+      case SentimentType.NEUTRAL: return 'text-sky-400 border-sky-900 bg-sky-950/30';
       default: return 'text-sky-400 border-sky-900 bg-sky-950/30';
     }
   };
@@ -189,6 +214,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
     switch (label) {
       case SentimentType.POSITIVE: return <TrendingUp className="w-6 h-6 text-emerald-400" />;
       case SentimentType.NEGATIVE: return <TrendingDown className="w-6 h-6 text-red-400" />;
+      case SentimentType.NEUTRAL: return <Minus className="w-6 h-6 text-sky-400" />;
       default: return <Minus className="w-6 h-6 text-sky-400" />;
     }
   };
@@ -256,22 +282,43 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6 relative">
         {isLoading ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center space-y-8 bg-slate-900/40 backdrop-blur-sm">
-             <div className="relative">
-                <div className="absolute inset-0 bg-indigo-500/20 rounded-full blur-xl animate-pulse"></div>
-                <Loader2 className="w-12 h-12 text-indigo-500 animate-spin relative z-10" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center space-y-12 bg-slate-950/80 backdrop-blur-md z-50">
+             
+             {/* Radar / Scanner Visual */}
+             <div className="relative w-32 h-32 flex items-center justify-center">
+                {/* Rings */}
+                <div className="absolute inset-0 border-2 border-indigo-500/30 rounded-full animate-[ping_3s_linear_infinite]"></div>
+                <div className="absolute inset-0 border border-indigo-500/20 rounded-full scale-150 animate-[ping_4s_linear_infinite_1s]"></div>
+                <div className="absolute inset-0 border border-indigo-500/10 rounded-full scale-75 animate-pulse"></div>
+                
+                {/* Center Icon */}
+                <div className="relative z-10 bg-slate-900 p-4 rounded-full border border-indigo-500/50 shadow-[0_0_30px_rgba(99,102,241,0.3)]">
+                    <Radar className="w-10 h-10 text-indigo-400 animate-spin" style={{ animationDuration: '4s' }} />
+                </div>
+
+                {/* Rotating Scanner Line */}
+                <div className="absolute inset-0 w-full h-full rounded-full overflow-hidden animate-spin" style={{ animationDuration: '3s' }}>
+                    <div className="w-full h-1/2 bg-gradient-to-b from-indigo-500/10 to-transparent absolute top-0 left-0"></div>
+                </div>
              </div>
              
-             <div className="space-y-4 max-w-sm animate-[fadeIn_0.5s_ease-out]">
-                <div className="flex items-center justify-center gap-2 text-indigo-400 font-bold tracking-widest text-xs uppercase mb-2">
-                    <Lightbulb className="w-4 h-4" />
-                    <span>Did you know?</span>
+             <div className="space-y-6 max-w-sm animate-[fadeIn_0.5s_ease-out]">
+                {/* Simulated Terminal Output */}
+                <div className="font-mono text-xs text-indigo-400/90 uppercase tracking-widest flex items-center justify-center gap-2">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>{LOADING_STAGES[loadingStage]}</span>
                 </div>
-                <p className="text-slate-300 text-lg font-medium leading-relaxed italic">
-                    "{currentFact}"
-                </p>
-                <div className="pt-4 text-xs text-slate-500 font-mono">
-                    ANALYZING REGIONAL DATA...
+
+                {/* Fun Fact Card */}
+                <div className="bg-slate-900/80 border border-slate-700/50 p-6 rounded-xl relative overflow-hidden text-left shadow-lg">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+                    <div className="flex items-center gap-2 text-slate-400 font-bold tracking-widest text-[10px] uppercase mb-3">
+                        <Lightbulb className="w-3 h-3 text-indigo-400" />
+                        <span>Intelligence Briefing</span>
+                    </div>
+                    <p className="text-slate-200 text-sm font-medium leading-relaxed italic">
+                        "{currentFact}"
+                    </p>
                 </div>
              </div>
           </div>

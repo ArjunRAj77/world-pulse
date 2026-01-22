@@ -140,7 +140,8 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, currentScore }) => {
         .attr("cx", d => x(new Date(d.timestamp)))
         .attr("cy", d => y(d.score))
         .attr("r", 3)
-        .attr("fill", d => d.score > 0 ? "#10b981" : d.score < 0 ? "#ef4444" : "#38bdf8") // Sky Blue for neutral
+        // Corrected threshold to match WorldMap (Neutral is +/- 0.05)
+        .attr("fill", d => d.score > 0.05 ? "#10b981" : d.score < -0.05 ? "#ef4444" : "#38bdf8") 
         .attr("stroke", "#0f172a")
         .attr("stroke-width", 1);
 

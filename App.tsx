@@ -480,15 +480,15 @@ function App() {
                 <ul className="space-y-6 text-green-400/90 text-sm leading-relaxed list-none">
                     <li className="flex items-start gap-4">
                         <Coffee className="w-5 h-5 mt-1 text-green-600 flex-shrink-0" />
-                        <span>A group of engineers doing random stuff hoping to change the world one day. (Mostly just turning caffeine into code).</span>
+                        <span>A group of engineers doing random stuff hoping to change the world one day 🌍. (Mostly just turning caffeine into code ☕).</span>
                     </li>
                     <li className="flex items-start gap-4">
                         <MapIcon className="w-5 h-5 mt-1 text-green-600 flex-shrink-0" />
-                        <span>This map is not correct. Not because we intentionally did it, but because it's the only one we got that didn't crash the browser. Mercator is a lie anyway.</span>
+                        <span>This map is not correct 🗺️. Not because we intentionally did it, but because it's the only one we got that didn't crash the browser. Mercator is a lie anyway 🤥.</span>
                     </li>
                     <li className="flex items-start gap-4">
                         <HeartHandshake className="w-5 h-5 mt-1 text-green-600 flex-shrink-0" />
-                        <span>We realised something: the world is getting bad day by day. Maybe you can be kind to someone today as well. It costs less than an API call.</span>
+                        <span>We realised something: the world is getting bad day by day 📉. Maybe you can be kind to someone today as well. It costs less than an API call ❤️.</span>
                     </li>
                 </ul>
 
