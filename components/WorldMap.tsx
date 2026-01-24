@@ -2,15 +2,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { Home } from 'lucide-react';
+import { STATIC_OVERLAYS, OverlayType } from '../services/staticData';
 
 interface WorldMapProps {
   onCountrySelect: (countryName: string) => void;
   selectedCountry: string | null;
   sentimentMap: Record<string, number>; 
   geoData: any;
+  activeOverlay: OverlayType;
 }
 
-const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, sentimentMap, geoData }) => {
+const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, sentimentMap, geoData, activeOverlay }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -50,12 +52,10 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       // Threshold lowered to 0.05 to capture mild positive/negative sentiments
       if (score > 0.05) {
           // Positive: Interpolate to Emerald 500
-          // Start intensity at 0.3 so mild scores are clearly Green, not black-green
           return d3.interpolateRgb("#1e293b", "#10b981")(0.3 + (Math.min(1, score) * 0.7)); 
       }
       if (score < -0.05) {
           // Negative: Interpolate to Red 500
-          // Start intensity at 0.3 so mild scores are clearly Red
           return d3.interpolateRgb("#1e293b", "#ef4444")(0.3 + (Math.min(1, Math.abs(score)) * 0.7));
       }
       
@@ -67,7 +67,6 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
   useEffect(() => {
     if (!geoData || !svgRef.current || dimensions.width === 0 || dimensions.height === 0) return;
 
-    // Safety check: if fallback was triggered and features are empty, do not attempt to draw
     if (!geoData.features || geoData.features.length === 0) return;
 
     const { width, height } = dimensions;
@@ -86,7 +85,6 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
         features: geoData.features.filter((f: any) => f.properties.name !== "Antarctica")
     };
     
-    // Critical Safety: If filtering results in empty array, stop here to prevent fitExtent crash
     if (featuresWithoutAntarctica.features.length === 0) return;
 
     const projection = d3.geoMercator()
@@ -103,8 +101,23 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       .translateExtent([[0, 0], [width, height]])
       .on('zoom', (event) => {
          g.attr('transform', event.transform.toString());
-         g.selectAll('.country-block').attr('stroke-width', 0.5 / event.transform.k);
-         g.selectAll('.graticule').attr('stroke-width', 0.5 / event.transform.k);
+         
+         const k = event.transform.k;
+         // Scale borders
+         g.selectAll('.country-block').attr('stroke-width', 0.5 / k);
+         g.selectAll('.graticule').attr('stroke-width', 0.5 / k);
+
+         // Scale Icons: We inverse scale the 'transform' on the group or the path
+         // For paths, we might need to adjust scale attribute directly
+         g.selectAll('.overlay-icon-group')
+            .attr('transform', function(d: any) {
+                // Recover the original translation from the data datum we attached or recalculate
+                const centroid = pathGenerator.centroid(d);
+                if (isNaN(centroid[0]) || isNaN(centroid[1])) return null;
+                // Scale 1/k
+                const scale = Math.max(0.3, 1 / k); 
+                return `translate(${centroid[0]}, ${centroid[1]}) scale(${scale})`;
+            });
       });
 
     zoomRef.current = zoom;
@@ -146,7 +159,9 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       .on('mouseover', function(event, d: any) {
         const sel = d3.select(this);
         sel.raise();
-        // ONLY highlight stroke (border), DO NOT change fill
+        // Keep overlays on top after raise
+        g.selectAll('.overlay-group').raise();
+
         sel.attr('stroke', '#f8fafc').attr('stroke-width', 1.5 / (d3.zoomTransform(svg.node()!).k || 1));
         
         if (tooltipRef.current) {
@@ -164,12 +179,8 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       })
       .on('mouseout', function(event, d: any) {
         const sel = d3.select(this);
-        // Reset Stroke only
         sel.attr('stroke', '#334155').attr('stroke-width', 0.5 / (d3.zoomTransform(svg.node()!).k || 1));
         
-        // DO NOT reset fill here using stale state. 
-        // Let the 'Update Colors' useEffect handle fill maintenance.
-
         if (tooltipRef.current) {
             tooltipRef.current.style.opacity = '0';
         }
@@ -178,6 +189,9 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
         event.stopPropagation();
         onCountrySelect(d.properties.name);
       });
+
+    // 4. Overlays Group (Created once)
+    g.append('g').attr('class', 'overlay-group');
 
     // Initial Zoom
     if (!selectedCountry) {
@@ -197,7 +211,6 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       .attr('fill', (d: any) => getFillColor(sentimentMap[d.properties.name]))
       .attr('class', (d: any) => {
           const score = sentimentMap[d.properties.name];
-          // Pulse if significant sentiment (> 0.2 still appropriate for heavy pulsing)
           return (score !== undefined && Math.abs(score) > 0.2) 
             ? 'country-block animate-pulse-sentiment' 
             : 'country-block';
@@ -205,11 +218,68 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
 
   }, [sentimentMap, geoData, dimensions]);
 
-  // 4. Handle Focus Zoom
+  // 4. Update Overlays (Static Data)
+  useEffect(() => {
+    if (!gRef.current || !geoData || !projectionRef.current) return;
+    
+    const svg = d3.select(svgRef.current);
+    const k = d3.zoomTransform(svg.node()!).k || 1;
+    const pathGenerator = d3.geoPath().projection(projectionRef.current);
+    const overlayGroup = gRef.current.select('.overlay-group');
+
+    // Clear existing
+    overlayGroup.selectAll('*').remove();
+
+    if (activeOverlay === 'NONE') return;
+
+    const config = STATIC_OVERLAYS[activeOverlay];
+    if (!config || !config.mapPath) return;
+
+    // Filter features that match the active overlay list
+    const featuresToOverlay = geoData.features.filter((f: any) => 
+        config.countries.includes(f.properties.name)
+    );
+
+    // Create groups for each icon to handle translation and scaling
+    const groups = overlayGroup.selectAll('.overlay-icon-group')
+        .data(featuresToOverlay)
+        .enter()
+        .append('g')
+        .attr('class', 'overlay-icon-group')
+        .attr('transform', (d: any) => {
+            const centroid = pathGenerator.centroid(d);
+            if (isNaN(centroid[0]) || isNaN(centroid[1])) return null;
+            // Initial scale
+            const scale = Math.max(0.3, 1 / k);
+            return `translate(${centroid[0]}, ${centroid[1]}) scale(${scale})`;
+        });
+
+    // Append Path to Group
+    groups.append('path')
+        .attr('d', config.mapPath)
+        .attr('fill', config.color)
+        .attr('stroke', '#0f172a') // Dark stroke for contrast
+        .attr('stroke-width', 1)
+        // Center the 24x24 icon. Translate -12, -12
+        .attr('transform', 'translate(-12, -12)') 
+        .attr('opacity', 0)
+        .transition()
+        .duration(500)
+        .attr('opacity', 1);
+
+    // Add Pulse effect behind
+    groups.insert('circle', 'path')
+        .attr('r', 8)
+        .attr('fill', config.color)
+        .attr('opacity', 0.4)
+        .attr('class', 'animate-ping-slow');
+
+  }, [activeOverlay, geoData, dimensions]);
+
+  // 5. Handle Focus Zoom
   useEffect(() => {
     if (!selectedCountry || !zoomRef.current || !svgRef.current || dimensions.width === 0) return;
     
-    // Safety check for empty features
     if (!geoData || !geoData.features || geoData.features.length === 0) return;
 
     const pathGenerator = d3.geoPath().projection(projectionRef.current);
@@ -279,8 +349,18 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
                 0%, 100% { filter: brightness(1); }
                 50% { filter: brightness(1.2); }
             }
+            @keyframes pingSlow {
+                0% { transform: scale(0.8); opacity: 0.5; }
+                100% { transform: scale(2); opacity: 0; }
+            }
             .animate-pulse-sentiment {
                 animation: pulseBrightness 3s ease-in-out infinite;
+            }
+            .animate-ping-slow {
+                animation: pingSlow 3s cubic-bezier(0, 0, 0.2, 1) infinite;
+            }
+            .overlay-icon-group {
+                pointer-events: none;
             }
         `}</style>
     </div>

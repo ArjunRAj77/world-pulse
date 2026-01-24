@@ -9,7 +9,9 @@ import { validateApiKeyConnection, KEY_COUNTRIES, normalizeCountryName } from '.
 import { syncManager, ingestSpecificCountry } from './services/scheduler';
 import { initDB, getCountryData, getAllCountryData, testConnection } from './services/db';
 import { CountrySentimentData } from './types';
-import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar, Terminal, Coffee, Map as MapIcon, HeartHandshake } from 'lucide-react';
+import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar, Terminal, Coffee, Map as MapIcon, HeartHandshake, Layers, Shield, ChevronDown, Radiation, Satellite } from 'lucide-react';
+import { OverlayType, STATIC_OVERLAYS } from './services/staticData';
+import clsx from 'clsx';
 
 function App() {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
@@ -24,11 +26,16 @@ function App() {
   const [showEasterEgg, setShowEasterEgg] = useState(false);
   const [showGlobalSummary, setShowGlobalSummary] = useState(false);
 
+  // Map Overlay State
+  const [activeOverlay, setActiveOverlay] = useState<OverlayType>('NONE');
+  const [isLayersMenuOpen, setIsLayersMenuOpen] = useState(false);
+
   // Auto Pilot State
   const [isAutoPilot, setIsAutoPilot] = useState(false);
 
   // Refs for managing timeouts safely
   const loadingRef = useRef(false);
+  const layersMenuRef = useRef<HTMLDivElement>(null);
 
   const [geoData, setGeoData] = useState<any>(null);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -159,6 +166,17 @@ function App() {
         }
     };
     runStartupChecks();
+  }, []);
+
+  // Close layers menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+        if (layersMenuRef.current && !layersMenuRef.current.contains(event.target as Node)) {
+            setIsLayersMenuOpen(false);
+        }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // 4. Handle Selection
@@ -311,6 +329,16 @@ function App() {
     }
   };
 
+  // Helper to map active overlay to icon
+  const getOverlayIcon = (type: OverlayType) => {
+      switch(type) {
+          case 'NUCLEAR': return <Radiation className="w-4 h-4 text-amber-500" />;
+          case 'SPACE': return <Satellite className="w-4 h-4 text-sky-400" />;
+          case 'NATO': return <Shield className="w-4 h-4 text-indigo-400" />;
+          default: return <X className="w-4 h-4 text-slate-500" />;
+      }
+  };
+
   const totalCountries = KEY_COUNTRIES.length;
   const progressPercent = syncStatus.remaining 
     ? Math.round(((totalCountries - syncStatus.remaining) / totalCountries) * 100) 
@@ -448,6 +476,63 @@ function App() {
              </div>
          </div>
       )}
+
+      {/* MAP LAYER CONTROLS (COLLAPSIBLE) */}
+      <div 
+        ref={layersMenuRef}
+        className="absolute bottom-6 left-6 z-40 flex flex-col gap-2"
+      >
+          {isLayersMenuOpen ? (
+              <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700 rounded-xl p-2 shadow-xl flex flex-col gap-1 w-48 animate-[fadeIn_0.2s_ease-out]">
+                  <div 
+                    onClick={() => setIsLayersMenuOpen(false)}
+                    className="flex items-center justify-between p-2 text-[10px] text-slate-500 font-bold uppercase tracking-widest border-b border-slate-800 mb-1 cursor-pointer hover:text-slate-300"
+                  >
+                      <div className="flex items-center gap-2">
+                         <Layers className="w-3 h-3" />
+                         Layers
+                      </div>
+                      <ChevronDown className="w-3 h-3" />
+                  </div>
+                  {(['NONE', 'NUCLEAR', 'SPACE', 'NATO'] as OverlayType[]).map((type) => (
+                      <button
+                          key={type}
+                          onClick={() => {
+                              setActiveOverlay(type);
+                              setIsLayersMenuOpen(false);
+                          }}
+                          className={clsx(
+                              "px-3 py-2 rounded-lg text-xs font-bold transition-all border flex items-center justify-between group",
+                              activeOverlay === type
+                                  ? "bg-indigo-600 border-indigo-500 text-white shadow-md"
+                                  : "bg-transparent border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                          )}
+                          title={STATIC_OVERLAYS[type].description}
+                      >
+                          <div className="flex items-center gap-2">
+                              {getOverlayIcon(type)}
+                              <span>{STATIC_OVERLAYS[type].label}</span>
+                          </div>
+                          {activeOverlay === type && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                      </button>
+                  ))}
+              </div>
+          ) : (
+              <button
+                  onClick={() => setIsLayersMenuOpen(true)}
+                  className="bg-slate-900/80 backdrop-blur-md border border-slate-700 rounded-full p-3 shadow-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 group relative"
+                  title="Map Layers"
+              >
+                  <Layers className="w-5 h-5" />
+                  {activeOverlay !== 'NONE' && (
+                      <span className="absolute top-0 right-0 -mt-1 -mr-1 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+                      </span>
+                  )}
+              </button>
+          )}
+      </div>
       
       {/* MAP ERROR OVERLAY */}
       {mapError && (!geoData || geoData.features.length === 0) && (
@@ -578,6 +663,7 @@ function App() {
             onCountrySelect={handleCountrySelect} 
             selectedCountry={selectedCountry}
             sentimentMap={sentimentMap}
+            activeOverlay={activeOverlay}
         />
       </main>
 
