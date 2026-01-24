@@ -10,9 +10,10 @@ interface WorldMapProps {
   sentimentMap: Record<string, number>; 
   geoData: any;
   activeOverlay: OverlayType;
+  customOverlayCountries?: string[]; // New prop for dynamic layers
 }
 
-const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, sentimentMap, geoData, activeOverlay }) => {
+const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, sentimentMap, geoData, activeOverlay, customOverlayCountries }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -218,7 +219,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
 
   }, [sentimentMap, geoData, dimensions]);
 
-  // 4. Update Overlays (Static Data)
+  // 4. Update Overlays (Static & Dynamic)
   useEffect(() => {
     if (!gRef.current || !geoData || !projectionRef.current) return;
     
@@ -235,11 +236,16 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
     const config = STATIC_OVERLAYS[activeOverlay];
     if (!config || !config.mapPath) return;
 
+    // Use dynamic countries if provided, else fallback to static config
+    const targetCountries = customOverlayCountries && customOverlayCountries.length > 0 
+        ? customOverlayCountries 
+        : config.countries;
+    
     // Filter features that match the active overlay list
     const featuresToOverlay = geoData.features.filter((f: any) => 
-        config.countries.includes(f.properties.name)
+        targetCountries.includes(f.properties.name)
     );
-
+    
     // Create groups for each icon to handle translation and scaling
     const groups = overlayGroup.selectAll('.overlay-icon-group')
         .data(featuresToOverlay)
@@ -274,7 +280,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
         .attr('opacity', 0.4)
         .attr('class', 'animate-ping-slow');
 
-  }, [activeOverlay, geoData, dimensions]);
+  }, [activeOverlay, geoData, dimensions, customOverlayCountries]);
 
   // 5. Handle Focus Zoom
   useEffect(() => {

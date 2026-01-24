@@ -44,6 +44,49 @@ export const validateApiKeyConnection = async (): Promise<{ success: boolean; me
 };
 
 /**
+ * Fetch list of countries with active conflicts
+ */
+export const fetchActiveConflicts = async (): Promise<string[]> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: `Identify countries with active armed conflicts (wars, civil wars, insurgencies) as of ${new Date().toDateString()}.
+            Return a JSON object with a 'countries' array.
+            RULES:
+            1. Use common English names (e.g. "Russia", "Syria", "Myanmar").
+            2. For "Israel/Gaza", include "Israel" and "Palestine".
+            3. Include major hotspots like Ukraine, Sudan, Yemen, DRC.`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        countries: { 
+                            type: Type.ARRAY, 
+                            items: { type: Type.STRING } 
+                        }
+                    }
+                },
+                tools: [{googleSearch: {}}]
+            }
+        });
+
+        const text = response.text;
+        
+        if (!text) {
+            return [];
+        }
+
+        const data = JSON.parse(text);
+        return (data.countries || []).map((c: string) => normalizeCountryName(c));
+
+    } catch (e) {
+        console.error("[GeminiService] Failed to fetch conflicts:", e);
+        return [];
+    }
+};
+
+/**
  * Real API Call using Gemini 3 Flash with Retry Logic
  */
 export const fetchCountrySentiment = async (countryName: string): Promise<CountrySentimentData | null> => {

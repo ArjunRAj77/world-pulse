@@ -1,8 +1,10 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
-import { X, PieChart, Activity, Globe, Calendar, CheckCircle2, AlertCircle, HelpCircle, MinusCircle, ArrowUp, ArrowDown, Download, Newspaper, TrendingDown, TrendingUp } from 'lucide-react';
+import { X, PieChart, Activity, Globe, Calendar, CheckCircle2, AlertCircle, HelpCircle, MinusCircle, ArrowUp, ArrowDown, Download, Newspaper, TrendingDown, TrendingUp, Radiation } from 'lucide-react';
 import { getAllCountryData } from '../services/db';
+import { syncManager } from '../services/scheduler';
+import { STATIC_OVERLAYS } from '../services/staticData';
 import { CountrySentimentData } from '../types';
 import clsx from 'clsx';
 
@@ -158,6 +160,14 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
         }
     };
 
+    const handleNuclearRefresh = () => {
+        if (window.confirm("WARNING: Initiate priority satellite re-scan of all Nuclear States? This will consume daily API quota.")) {
+            const targets = STATIC_OVERLAYS.NUCLEAR.countries;
+            syncManager.start(targets, true); // true = force refresh
+            onClose(); // Close modal to show progress in main app
+        }
+    };
+
     // Draw Pie Chart
     useEffect(() => {
         if (!svgRef.current || stats.total === 0) return;
@@ -273,7 +283,17 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-white tracking-tight">Global Intelligence Summary</h2>
-                            <p className="text-slate-400 text-xs font-mono">CONFIDENTIAL_REPORT_V1 // {new Date().toLocaleDateString()}</p>
+                            <div className="text-slate-400 text-xs font-mono flex items-center gap-2">
+                                CONFIDENTIAL_REPORT_V1 // {new Date().toLocaleDateString()}
+                                {/* Hidden Nuclear Refresh Button */}
+                                <button 
+                                    onClick={handleNuclearRefresh}
+                                    className="opacity-10 hover:opacity-100 transition-all p-1 hover:text-amber-500 rounded"
+                                    title="Authorize Nuclear State Re-Scan"
+                                >
+                                    <Radiation className="w-3 h-3" />
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">

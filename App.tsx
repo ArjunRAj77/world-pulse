@@ -5,11 +5,11 @@ import SidePanel from './components/SidePanel';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import GlobalSummary from './components/GlobalSummary';
-import { validateApiKeyConnection, KEY_COUNTRIES, normalizeCountryName } from './services/geminiService';
+import { validateApiKeyConnection, KEY_COUNTRIES, normalizeCountryName, fetchActiveConflicts } from './services/geminiService';
 import { syncManager, ingestSpecificCountry } from './services/scheduler';
-import { initDB, getCountryData, getAllCountryData, testConnection } from './services/db';
+import { initDB, getCountryData, getAllCountryData, testConnection, getActiveConflicts, saveActiveConflicts } from './services/db';
 import { CountrySentimentData } from './types';
-import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar, Terminal, Coffee, Map as MapIcon, HeartHandshake, Layers, Shield, ChevronDown, Radiation, Rocket } from 'lucide-react';
+import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar, Terminal, Coffee, Map as MapIcon, HeartHandshake, Layers, Shield, ChevronDown, Radiation, Rocket, Swords } from 'lucide-react';
 import { OverlayType, STATIC_OVERLAYS } from './services/staticData';
 import clsx from 'clsx';
 
@@ -29,6 +29,10 @@ function App() {
   // Map Overlay State
   const [activeOverlay, setActiveOverlay] = useState<OverlayType>('NONE');
   const [isLayersMenuOpen, setIsLayersMenuOpen] = useState(false);
+  
+  // Dynamic Layers Data
+  const [conflictCountries, setConflictCountries] = useState<string[]>([]);
+  const [isConflictLoading, setIsConflictLoading] = useState(false);
 
   // Auto Pilot State
   const [isAutoPilot, setIsAutoPilot] = useState(false);
@@ -70,6 +74,24 @@ function App() {
             const initialMap: Record<string, number> = {};
             allData.forEach(d => { initialMap[d.countryName] = d.sentimentScore; });
             setSentimentMap(initialMap);
+        }
+
+        // Load active conflicts from DB (with Auto-Init fallback)
+        try {
+            let conflicts = await getActiveConflicts();
+            
+            if (conflicts.length > 0) {
+                setConflictCountries(conflicts);
+            } else {
+                // Auto-populate if empty
+                const freshConflicts = await fetchActiveConflicts();
+                if (freshConflicts.length > 0) {
+                    await saveActiveConflicts(freshConflicts);
+                    setConflictCountries(freshConflicts);
+                }
+            }
+        } catch (e) {
+            console.error("[App] Failed to load conflict data:", e);
         }
 
         // --- SCHEDULER LOGIC ---
@@ -303,6 +325,24 @@ function App() {
     setSelectedCountry(null);
   };
 
+  const handleRefreshConflicts = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (isConflictLoading) return;
+      
+      if (!confirm("Initiate AI scan for active conflict zones? This consumes API quota.")) return;
+
+      setIsConflictLoading(true);
+      const newConflicts = await fetchActiveConflicts();
+      if (newConflicts.length > 0) {
+          await saveActiveConflicts(newConflicts);
+          setConflictCountries(newConflicts);
+          alert(`Scan Complete. Found ${newConflicts.length} conflict zones.`);
+      } else {
+          alert("Scan returned no results or failed.");
+      }
+      setIsConflictLoading(false);
+  };
+
   const handleManualDbTest = async () => {
       const result = await testConnection();
       if (result.success) {
@@ -335,6 +375,7 @@ function App() {
           case 'NUCLEAR': return <Radiation className="w-4 h-4 text-amber-500" />;
           case 'SPACE': return <Rocket className="w-4 h-4 text-sky-400" />;
           case 'NATO': return <Shield className="w-4 h-4 text-indigo-400" />;
+          case 'CONFLICT': return <Swords className="w-4 h-4 text-red-500" />;
           default: return <X className="w-4 h-4 text-slate-500" />;
       }
   };
@@ -494,7 +535,7 @@ function App() {
                       </div>
                       <ChevronDown className="w-3 h-3" />
                   </div>
-                  {(['NONE', 'NUCLEAR', 'SPACE', 'NATO'] as OverlayType[]).map((type) => (
+                  {(['NONE', 'NUCLEAR', 'SPACE', 'NATO', 'CONFLICT'] as OverlayType[]).map((type) => (
                       <button
                           key={type}
                           onClick={() => {
@@ -513,7 +554,20 @@ function App() {
                               {getOverlayIcon(type)}
                               <span>{STATIC_OVERLAYS[type].label}</span>
                           </div>
-                          {activeOverlay === type && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                          
+                          {type === 'CONFLICT' && activeOverlay === 'CONFLICT' && (
+                              <div 
+                                onClick={handleRefreshConflicts}
+                                className={clsx("p-1 rounded hover:bg-white/20 transition-colors", isConflictLoading && "animate-spin")}
+                                title="Scan for latest conflicts"
+                              >
+                                  <RefreshCw className="w-3 h-3 text-white" />
+                              </div>
+                          )}
+                          
+                          {activeOverlay === type && type !== 'CONFLICT' && (
+                             <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                          )}
                       </button>
                   ))}
               </div>
@@ -664,6 +718,7 @@ function App() {
             selectedCountry={selectedCountry}
             sentimentMap={sentimentMap}
             activeOverlay={activeOverlay}
+            customOverlayCountries={activeOverlay === 'CONFLICT' ? conflictCountries : undefined}
         />
       </main>
 

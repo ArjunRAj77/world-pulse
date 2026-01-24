@@ -1,5 +1,5 @@
 
-export type OverlayType = 'NONE' | 'NUCLEAR' | 'SPACE' | 'NATO';
+export type OverlayType = 'NONE' | 'NUCLEAR' | 'SPACE' | 'NATO' | 'CONFLICT';
 
 export interface OverlayConfig {
     id: OverlayType;
@@ -57,5 +57,14 @@ export const STATIC_OVERLAYS: Record<OverlayType, OverlayConfig> = {
             "Slovakia", "Slovenia", "Croatia", "Albania", "Montenegro", "North Macedonia", 
             "Iceland", "Estonia", "Latvia", "Lithuania", "Finland", "Sweden"
         ]
+    },
+    CONFLICT: {
+        id: 'CONFLICT',
+        label: 'Active Conflicts',
+        // Swords / Cross icon
+        mapPath: 'M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2',
+        color: '#ef4444', // Red 500
+        description: 'Regions with active armed conflicts or wars',
+        countries: [] // Dynamically populated
     }
 };

@@ -42,7 +42,13 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // 3. CONNECTION TEST COLLECTION
+    // 3. CONFLICTS COLLECTION
+    // Public read/write for dynamic updates
+    match /active_conflicts/{doc} {
+        allow read, write: if true;
+    }
+
+    // 4. CONNECTION TEST COLLECTION
     // Used for the "Test Connection" feature in the UI
     match /_connection_test_/{doc} {
       allow read, write: if true; 

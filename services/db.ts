@@ -6,6 +6,7 @@ import { CountrySentimentData, HistoricalPoint } from '../types';
 // Collections
 const LATEST_COLLECTION = 'latest_sentiments';
 const ARCHIVE_COLLECTION = 'daily_archive';
+const CONFLICTS_COLLECTION = 'active_conflicts';
 const TEST_COLLECTION = '_connection_test_';
 
 // In-Memory Fallback (Repository Pattern)
@@ -161,4 +162,38 @@ export const getAllCountryData = async (): Promise<CountrySentimentData[]> => {
       console.error("[DB-Firestore] Fetch ALL Error:", e);
       return Array.from(memoryCache.values());
   }
+};
+
+// --- CONFLICT DATA METHODS ---
+
+export const getActiveConflicts = async (): Promise<string[]> => {
+    if (!isFirebaseConfigured) {
+        return [];
+    }
+    
+    try {
+        const docRef = doc(db, CONFLICTS_COLLECTION, 'current');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return docSnap.data().countries || [];
+        }
+        return [];
+    } catch (e) {
+        console.error("[DB] Failed to get conflicts", e);
+        return [];
+    }
+};
+
+export const saveActiveConflicts = async (countries: string[]) => {
+    if (!isFirebaseConfigured) return;
+    
+    try {
+        const docRef = doc(db, CONFLICTS_COLLECTION, 'current');
+        await setDoc(docRef, {
+            countries,
+            lastUpdated: Date.now()
+        });
+    } catch (e) {
+        console.error("[DB] Failed to save conflicts", e);
+    }
 };
