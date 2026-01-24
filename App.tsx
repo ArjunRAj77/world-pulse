@@ -9,7 +9,7 @@ import { validateApiKeyConnection, KEY_COUNTRIES, normalizeCountryName } from '.
 import { syncManager, ingestSpecificCountry } from './services/scheduler';
 import { initDB, getCountryData, getAllCountryData, testConnection } from './services/db';
 import { CountrySentimentData } from './types';
-import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar, Terminal, Coffee, Map as MapIcon, HeartHandshake, Layers, Shield, ChevronDown, Radiation, Satellite } from 'lucide-react';
+import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar, Terminal, Coffee, Map as MapIcon, HeartHandshake, Layers, Shield, ChevronDown, Radiation, Rocket } from 'lucide-react';
 import { OverlayType, STATIC_OVERLAYS } from './services/staticData';
 import clsx from 'clsx';
 
@@ -333,7 +333,7 @@ function App() {
   const getOverlayIcon = (type: OverlayType) => {
       switch(type) {
           case 'NUCLEAR': return <Radiation className="w-4 h-4 text-amber-500" />;
-          case 'SPACE': return <Satellite className="w-4 h-4 text-sky-400" />;
+          case 'SPACE': return <Rocket className="w-4 h-4 text-sky-400" />;
           case 'NATO': return <Shield className="w-4 h-4 text-indigo-400" />;
           default: return <X className="w-4 h-4 text-slate-500" />;
       }

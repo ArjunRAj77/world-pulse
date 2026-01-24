@@ -34,8 +34,8 @@ export const STATIC_OVERLAYS: Record<OverlayType, OverlayConfig> = {
     SPACE: {
         id: 'SPACE',
         label: 'Space Port',
-        // Satellite / Orbit Icon
-        mapPath: 'M2 12a5 5 0 0 0 5 5 8 8 0 0 1 5 5 5 5 0 0 0 5-5 8 8 0 0 1-5-5 5 5 0 0 0-5 5zm9.5-3.5L14 11l-2.5 2.5L9 11l2.5-2.5z M19 5l-2.5 2.5L14 5l2.5-2.5L19 5z M5 19l2.5-2.5L10 19l-2.5 2.5L5 19z',
+        // Rocket Symbol
+        mapPath: 'M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09zM12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2zM9 2l5.6 5.6M15 9l-5.6 5.6',
         color: '#38bdf8', // Sky 400
         description: 'Nations with orbital launch capability',
         countries: [

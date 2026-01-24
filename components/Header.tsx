@@ -68,6 +68,10 @@ const Header: React.FC<HeaderProps> = ({ countries, onCountrySelect, isPanelOpen
           <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700 rounded-xl p-4 shadow-sm flex-shrink-0 group hover:shadow-md transition-all">
             <div className="flex items-center gap-3">
                 <div className="relative p-2 bg-indigo-950/50 rounded-lg text-indigo-400 overflow-hidden border border-indigo-500/30 group-hover:border-indigo-400/50 transition-colors">
+                    {/* Enhanced Animation: Pulse Effect */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-full h-full bg-indigo-500/20 rounded-full animate-ping opacity-75"></div>
+                    </div>
                     <Radar className="w-8 h-8 animate-[spin_3s_linear_infinite] relative z-10" />
                 </div>
                 <div>
