@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Heart, Zap, Info, PieChart, HelpCircle, Plane, Square } from 'lucide-react';
+import { Heart, Info, PieChart, HelpCircle } from 'lucide-react';
 import clsx from 'clsx';
 
 interface FooterProps {
@@ -47,7 +47,7 @@ const Footer: React.FC<FooterProps> = ({
     };
 
     return (
-        <div className="absolute bottom-0 left-0 w-full bg-slate-900/80 backdrop-blur border-t border-slate-800 text-slate-400 text-xs font-mono p-3 flex justify-center items-center z-30 selection:bg-indigo-500/30">
+        <div className="absolute bottom-0 left-0 w-full bg-slate-950/80 backdrop-blur border-t border-slate-800 text-slate-400 text-xs font-mono p-3 flex justify-center items-center z-30 selection:bg-indigo-500/30">
             
             {/* Dev Mode Indicator (Moved to Left) */}
             {clickCount > 2 && clickCount < 7 && (
@@ -78,29 +78,37 @@ const Footer: React.FC<FooterProps> = ({
                 </div>
             </div>
 
-            {/* Auto Pilot Button with Tooltip */}
-            <div className="relative group/autopilot ml-4">
-                <button 
+            {/* Auto Pilot Slider Toggle */}
+            <div className="relative group/autopilot ml-6 flex items-center">
+                <div 
                     onClick={onToggleAutoPilot}
-                    className={clsx(
-                        "px-2 py-1 rounded-md flex items-center gap-2 transition-all duration-300 border",
-                        isAutoPilot 
-                            ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/50 shadow-[0_0_10px_rgba(99,102,241,0.3)]" 
-                            : "bg-transparent text-slate-500 border-transparent hover:bg-slate-800 hover:text-slate-300"
-                    )}
+                    className="flex items-center gap-3 cursor-pointer group select-none"
+                    role="button"
+                    tabIndex={0}
                 >
-                    {isAutoPilot ? (
-                        <>
-                            <Square className="w-3 h-3 fill-current" />
-                            <span className="text-[10px] font-bold">STOP AUTO</span>
-                        </>
-                    ) : (
-                        <>
-                            <Plane className="w-3 h-3" />
-                            <span className="text-[10px] font-bold hidden md:inline">AUTO PILOT</span>
-                        </>
-                    )}
-                </button>
+                    <span className={clsx(
+                        "text-[10px] font-bold tracking-widest transition-colors duration-300",
+                        isAutoPilot ? "text-indigo-400 shadow-indigo-500/50 drop-shadow-sm" : "text-slate-500 group-hover:text-slate-400"
+                    )}>
+                        AUTO PILOT
+                    </span>
+                    
+                    {/* Toggle Track */}
+                    <div className={clsx(
+                        "w-9 h-5 rounded-full border transition-all duration-300 relative flex items-center",
+                        isAutoPilot 
+                            ? "bg-indigo-500/20 border-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.3)]" 
+                            : "bg-slate-800 border-slate-600 group-hover:border-slate-500"
+                    )}>
+                        {/* Toggle Thumb */}
+                        <div className={clsx(
+                            "w-3 h-3 rounded-full shadow-sm transition-all duration-300 absolute ease-out-back",
+                            isAutoPilot 
+                                ? "bg-indigo-400 left-[20px] shadow-[0_0_8px_rgba(99,102,241,0.8)]" 
+                                : "bg-slate-400 left-[3px]"
+                        )} />
+                    </div>
+                </div>
 
                 {/* Info Tooltip */}
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-max max-w-[200px] opacity-0 group-hover/autopilot:opacity-100 transition-opacity duration-200 bg-slate-900 text-slate-300 text-[10px] px-3 py-2 rounded-lg shadow-xl border border-slate-700 pointer-events-none text-center z-50 leading-tight backdrop-blur-md">

@@ -33,6 +33,8 @@ const WorldMap: React.FC<WorldMapProps> = ({
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const projectionRef = useRef<d3.GeoProjection>(d3.geoMercator()); 
 
+  // Use a ref to track dimensions to prevent unnecessary re-renders loop in ResizeObserver
+  const dimRef = useRef({ width: 0, height: 0 });
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   // 1. Resize Observer
@@ -40,16 +42,20 @@ const WorldMap: React.FC<WorldMapProps> = ({
     if (!containerRef.current) return;
 
     const resizeObserver = new ResizeObserver(entries => {
-      for (let entry of entries) {
-        requestAnimationFrame(() => {
-            if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
-                setDimensions({
-                    width: entry.contentRect.width,
-                    height: entry.contentRect.height
-                });
-            }
-        });
-      }
+      if (!Array.isArray(entries) || !entries.length) return;
+      const entry = entries[0];
+      
+      requestAnimationFrame(() => {
+        const { width, height } = entry.contentRect;
+        // Ignore initial 0,0 or minimal changes (sub-pixel jitter) to prevent flicker
+        if (width > 0 && height > 0 && 
+            (Math.abs(width - dimRef.current.width) > 2 || 
+             Math.abs(height - dimRef.current.height) > 2)) {
+            
+            dimRef.current = { width, height };
+            setDimensions({ width, height });
+        }
+      });
     });
 
     resizeObserver.observe(containerRef.current);
@@ -95,7 +101,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
         svg.selectAll('*').remove();
         
         // Create Group
-        const g = svg.append('g');
+        const g = svg.append('g').style('will-change', 'transform');
         gRef.current = g;
 
         // Filter valid features
@@ -128,9 +134,10 @@ const WorldMap: React.FC<WorldMapProps> = ({
              gRef.current.attr('transform', event.transform.toString());
              
              const k = event.transform.k;
-             // Scale borders
-             gRef.current.selectAll('.country-block').attr('stroke-width', 0.5 / k);
-             gRef.current.selectAll('.graticule').attr('stroke-width', 0.5 / k);
+             
+             // OPTIMIZATION: Removed manual stroke-width updates. 
+             // Using vector-effect: non-scaling-stroke in CSS instead.
+             // This significantly improves performance during zoom.
 
              // Scale Icons
              gRef.current.selectAll('.overlay-icon-group')
@@ -149,26 +156,51 @@ const WorldMap: React.FC<WorldMapProps> = ({
 
         // --- DRAWING ORDER ---
 
-        // 1. Ocean
+        // 1. Ocean Background
         g.append('rect')
           .attr('x', -width * 2)
           .attr('y', -height * 2)
           .attr('width', width * 5)
           .attr('height', height * 5)
-          .attr('fill', '#0f172a') // Slate 900
+          .attr('fill', '#020617') // Deepest Slate/Black
           .attr('stroke', 'none');
 
-        // 2. Graticules
+        // 2. Ocean Glitter Effect
+        // Generate random stars/glitter for the ocean
+        const glitterCount = 150;
+        const glitterData = d3.range(glitterCount).map(() => ({
+            x: d3.randomUniform(-width * 1.5, width * 2.5)(),
+            y: d3.randomUniform(-height * 1.5, height * 2.5)(),
+            size: d3.randomUniform(0.5, 1.8)(),
+            delay: d3.randomUniform(0, 5)(),
+            duration: d3.randomUniform(2, 6)()
+        }));
+
+        g.append('g')
+            .attr('class', 'ocean-glitter')
+            .selectAll('circle')
+            .data(glitterData)
+            .enter()
+            .append('circle')
+            .attr('cx', d => d.x)
+            .attr('cy', d => d.y)
+            .attr('r', d => d.size)
+            .attr('fill', '#38bdf8') // Sky blue
+            .attr('opacity', 0.4)
+            .style('animation', d => `twinkle ${d.duration}s infinite ease-in-out ${d.delay}s`);
+
+        // 3. Graticules
         g.append('path')
           .datum(graticule)
           .attr('class', 'graticule')
           .attr('d', pathGenerator as any)
           .attr('fill', 'none')
-          .attr('stroke', '#334155')
+          .attr('stroke', '#1e293b') // Fainter slate
           .attr('stroke-width', 0.5)
-          .attr('stroke-opacity', 0.3);
+          .attr('vector-effect', 'non-scaling-stroke') // OPTIMIZATION
+          .attr('stroke-opacity', 0.4);
 
-        // 3. Countries
+        // 4. Countries
         const paths = g.selectAll<SVGPathElement, any>('.country-block')
           .data(featuresWithoutAntarctica.features, (d: any) => d.properties.name);
 
@@ -178,10 +210,11 @@ const WorldMap: React.FC<WorldMapProps> = ({
           .attr('fill', '#1e293b') // Initial Default Land
           .attr('stroke', '#334155')
           .attr('stroke-width', 0.5)
+          .attr('vector-effect', 'non-scaling-stroke') // OPTIMIZATION
           .style('cursor', 'pointer')
           .attr('d', pathGenerator as any);
 
-        // 4. Overlays Group (Created once)
+        // 5. Overlays Group (Created once)
         g.append('g').attr('class', 'overlay-group').style('pointer-events', 'none');
 
         // Initial Zoom
@@ -208,6 +241,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
 
     try {
         gRef.current.selectAll('.country-block')
+          .interrupt() // STOP any pending transitions to prevent flicker during rapid updates
           .transition()
           .duration(700)
           .attr('fill', (d: any) => {
@@ -349,7 +383,8 @@ const WorldMap: React.FC<WorldMapProps> = ({
                 if (!overlayGroup.empty()) overlayGroup.raise();
             }
 
-            sel.attr('stroke', '#f8fafc').attr('stroke-width', 1.5 / (d3.zoomTransform(svgRef.current!).k || 1));
+            // Using vector-effect so we don't need complex stroke-width math here for hover, just color change
+            sel.attr('stroke', '#f8fafc').attr('stroke-width', 1.0);
             
             if (tooltipRef.current) {
                 tooltipRef.current.style.opacity = '1';
@@ -387,7 +422,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
           })
           .on('mouseout', function(event, d: any) {
             const sel = d3.select(this);
-            sel.attr('stroke', '#334155').attr('stroke-width', 0.5 / (d3.zoomTransform(svgRef.current!).k || 1));
+            sel.attr('stroke', '#334155').attr('stroke-width', 0.5);
             
             if (tooltipRef.current) {
                 tooltipRef.current.style.opacity = '0';
@@ -403,7 +438,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
         console.error("Event Binding Error:", e);
     }
 
-  }, [activeOverlay, conflictZones, onCountrySelect, geoData, dimensions]); // Added geoData and dimensions
+  }, [activeOverlay, conflictZones, onCountrySelect, geoData, dimensions]);
 
   const handleReset = () => {
     if (svgRef.current && zoomRef.current) {
@@ -468,6 +503,10 @@ const WorldMap: React.FC<WorldMapProps> = ({
             @keyframes pingSlow {
                 0% { transform: scale(0.8); opacity: 0.5; }
                 100% { transform: scale(2); opacity: 0; }
+            }
+            @keyframes twinkle {
+                0%, 100% { opacity: 0.2; transform: scale(0.8); }
+                50% { opacity: 0.8; transform: scale(1.2); }
             }
             .animate-pulse-sentiment {
                 animation: pulseBrightness 3s ease-in-out infinite;

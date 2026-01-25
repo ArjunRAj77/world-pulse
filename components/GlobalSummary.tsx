@@ -490,21 +490,21 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
                         {/* RIGHT COLUMN: Data Table (8 Cols) */}
                         <div className="lg:col-span-8 bg-slate-800/30 border border-slate-700 rounded-xl overflow-hidden flex flex-col max-h-[600px]">
                             
-                            {/* Toolbar */}
-                            <div className="p-3 border-b border-slate-700 bg-slate-800/80 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20 backdrop-blur-md">
-                                <div className="flex items-center gap-2 text-sm font-bold text-slate-300 uppercase tracking-wider">
+                            {/* Toolbar (Tabs) */}
+                            <div className="p-3 border-b border-slate-700 bg-slate-800/80 flex flex-nowrap items-center justify-between gap-3 sticky top-0 z-20 backdrop-blur-md overflow-x-auto no-scrollbar">
+                                <div className="flex items-center gap-2 text-sm font-bold text-slate-300 uppercase tracking-wider flex-shrink-0">
                                     <Activity className="w-4 h-4 text-indigo-400" />
                                     <span>Registry</span>
                                     <span className="bg-slate-700 text-slate-300 text-[10px] px-1.5 rounded-full">{analyzedData.length}</span>
                                 </div>
                                 
-                                <div className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-lg border border-slate-700/50">
+                                <div className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-lg border border-slate-700/50 flex-shrink-0">
                                     {(['ALL', 'STABLE', 'UNSTABLE', 'NEUTRAL'] as FilterType[]).map((f) => (
                                         <button
                                             key={f}
                                             onClick={() => setFilter(f)}
                                             className={clsx(
-                                                "px-3 py-1 rounded-md text-[10px] font-bold transition-all",
+                                                "px-3 py-1 rounded-md text-[10px] font-bold transition-all whitespace-nowrap",
                                                 filter === f 
                                                     ? "bg-indigo-500 text-white shadow-sm" 
                                                     : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
@@ -630,6 +630,13 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
                     }
                     .animate-ticker:hover {
                         animation-play-state: paused;
+                    }
+                    .no-scrollbar::-webkit-scrollbar {
+                        display: none;
+                    }
+                    .no-scrollbar {
+                        -ms-overflow-style: none;
+                        scrollbar-width: none;
                     }
                 `}</style>
             </div>
