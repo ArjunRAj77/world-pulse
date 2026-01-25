@@ -61,8 +61,8 @@ export const STATIC_OVERLAYS: Record<OverlayType, OverlayConfig> = {
     CONFLICT: {
         id: 'CONFLICT',
         label: 'Active Conflicts',
-        // Swords / Cross icon
-        mapPath: 'M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2',
+        // Crossed Swords (Updated for better visibility)
+        mapPath: 'M14.5 17.5L3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2 M14.5 6.5l3.5-3.5h3v3l-3.5 3.5M5 14l6-6M4 17l4-4M3 21l2-2',
         color: '#ef4444', // Red 500
         description: 'Regions with active armed conflicts or wars',
         countries: [] // Dynamically populated
