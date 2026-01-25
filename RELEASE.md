@@ -2,7 +2,7 @@
 # Release Notes
 
 ## v1.5.0 - "Kinetic Horizon"
-**Release Date:** December 15, 2026
+**Release Date:** January 25, 2026
 
 This major update brings kinetic energy to the UI and specialized intelligence layers for conflict monitoring.
 
@@ -29,7 +29,7 @@ This major update brings kinetic energy to the UI and specialized intelligence l
 ---
 
 ## v1.1.0 - "Atmospheric Awareness"
-**Release Date:** November 02, 2026
+**Release Date:** January 22, 2026
 
 This update expands the sensory capabilities of GeoPulse, introducing environmental data and a comprehensive global dashboard for deeper analysis.
 
@@ -45,7 +45,7 @@ This update expands the sensory capabilities of GeoPulse, introducing environmen
 ---
 
 ## v1.0.0 - "Genesis Pulse" (Public Beta)
-**Release Date:** October 26, 2026
+**Release Date:** January 20, 2026
 
 We are thrilled to announce the first public release of **GeoPulse**. This version lays the foundation for a real-time global sentiment monitoring system using the latest in Generative AI.
 
