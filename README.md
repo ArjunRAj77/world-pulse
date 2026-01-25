@@ -1,5 +1,5 @@
 
-# Geo-Pulse 🌍
+# Geo-Pulse 🌍 v1.5.0
 
 > **Checking Earth's Vibe, One Headline at a Time.**
 
@@ -19,7 +19,9 @@ We grab live news, feed it to **Google Gemini 3 Flash**, and it spits back a "Se
 ## ✨ Cool Stuff It Does
 
 ### 1. The Living Map 🗺️
-It's a fully interactive vector map. Zoom in, pan around, and hover over countries to see their vitals. We use smart rendering so it doesn't kill your browser battery.
+It's a fully interactive vector map. Zoom in, pan around, and hover over countries to see their vitals.
+- **New in v1.5:** Dynamic **Conflict Layer** that highlights active war zones with AI-generated summaries.
+- **New in v1.5:** Animated Gyroscope header that looks straight out of a sci-fi movie.
 
 ### 2. AI News Anchor 🤖
 Click a country, and our AI:
@@ -28,10 +30,10 @@ Click a country, and our AI:
 - **Predicts the Future:** Analyzes trends to guess if next week will be better or worse.
 
 ### 3. Features You'll Love
+- **Global Dashboard:** A big table view to see who is winning at "Stability" and who needs a hug.
 - **Air Quality Check:** Tells you if you should wear a mask in the capital city right now.
 - **Time Travel:** We save data daily, so you can see a graph of how a country's mood has changed over the last month.
 - **Auto-Pilot Mode:** Hit the button, sit back, and let the app take you on a guided tour of the world. Perfect for hallway screens.
-- **Global Dashboard:** A big table view to see who is winning at "Stability" and who needs a hug.
 
 ---
 

@@ -680,7 +680,7 @@ function App() {
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-white">About Geo-Pulse</h2>
-                            <p className="text-slate-400 text-sm font-mono">v1.1.0 • Holographic Edition</p>
+                            <p className="text-slate-400 text-sm font-mono">v1.5.0 • Holographic Edition</p>
                         </div>
                     </div>
 
