@@ -9,7 +9,7 @@ import { validateApiKeyConnection, KEY_COUNTRIES, normalizeCountryName, fetchAct
 import { syncManager } from './services/scheduler';
 import { initDB, getCountryData, getAllCountryData, testConnection, getActiveConflicts, saveActiveConflicts } from './services/db';
 import { CountrySentimentData, ConflictZone } from './types';
-import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar, Terminal, Coffee, Map as MapIcon, HeartHandshake, Layers, Shield, ChevronDown, Radiation, Rocket, Target } from 'lucide-react';
+import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar, Terminal, Coffee, Map as MapIcon, HeartHandshake, Layers, Shield, ChevronDown, Radiation, Rocket, Target, Link, Cpu, Flame } from 'lucide-react';
 import { OverlayType, STATIC_OVERLAYS } from './services/staticData';
 import clsx from 'clsx';
 
@@ -385,6 +385,9 @@ function App() {
           case 'SPACE': return <Rocket className="w-4 h-4 text-sky-400" />;
           case 'NATO': return <Shield className="w-4 h-4 text-indigo-400" />;
           case 'CONFLICT': return <Target className="w-4 h-4 text-red-500" />;
+          case 'BRICS': return <Link className="w-4 h-4 text-fuchsia-400" />;
+          case 'AI_HUBS': return <Cpu className="w-4 h-4 text-cyan-400" />;
+          case 'OPEC': return <Flame className="w-4 h-4 text-yellow-400" />;
           default: return <X className="w-4 h-4 text-slate-500" />;
       }
   };
@@ -544,7 +547,7 @@ function App() {
                       </div>
                       <ChevronDown className="w-3 h-3" />
                   </div>
-                  {(['NONE', 'NUCLEAR', 'SPACE', 'NATO', 'CONFLICT'] as OverlayType[]).map((type) => (
+                  {(['NONE', 'NUCLEAR', 'SPACE', 'NATO', 'BRICS', 'AI_HUBS', 'OPEC', 'CONFLICT'] as OverlayType[]).map((type) => (
                       <button
                           key={type}
                           onClick={() => {

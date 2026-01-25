@@ -161,10 +161,18 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
     };
 
     const handleNuclearRefresh = () => {
-        if (window.confirm("WARNING: Initiate priority satellite re-scan of all Nuclear States? This will consume daily API quota.")) {
-            const targets = STATIC_OVERLAYS.NUCLEAR.countries;
-            syncManager.start(targets, true); // true = force refresh
-            onClose(); // Close modal to show progress in main app
+        try {
+            if (window.confirm("WARNING: Initiate priority satellite re-scan of all Nuclear States? This will consume daily API quota.")) {
+                const targets = STATIC_OVERLAYS.NUCLEAR?.countries;
+                if (!targets || targets.length === 0) {
+                    throw new Error("Nuclear target list unavailable.");
+                }
+                syncManager.start(targets, true); // true = force refresh
+                onClose(); // Close modal to show progress in main app
+            }
+        } catch (e: any) {
+            console.error("Failed to initiate nuclear scan:", e);
+            alert(`Command Failed: ${e.message}`);
         }
     };
 

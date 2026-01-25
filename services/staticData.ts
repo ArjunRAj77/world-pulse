@@ -1,5 +1,5 @@
 
-export type OverlayType = 'NONE' | 'NUCLEAR' | 'SPACE' | 'NATO' | 'CONFLICT';
+export type OverlayType = 'NONE' | 'NUCLEAR' | 'SPACE' | 'NATO' | 'CONFLICT' | 'BRICS' | 'AI_HUBS' | 'OPEC';
 
 export interface OverlayConfig {
     id: OverlayType;
@@ -58,10 +58,46 @@ export const STATIC_OVERLAYS: Record<OverlayType, OverlayConfig> = {
             "Iceland", "Estonia", "Latvia", "Lithuania", "Finland", "Sweden"
         ]
     },
+    BRICS: {
+        id: 'BRICS',
+        label: 'BRICS+',
+        // Link Icon
+        mapPath: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71 M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
+        color: '#d946ef', // Fuchsia 500
+        description: 'Major emerging national economies (BRICS + New Members)',
+        countries: [
+            "Brazil", "Russia", "India", "China", "South Africa", 
+            "Egypt", "Ethiopia", "Iran", "United Arab Emirates"
+        ]
+    },
+    AI_HUBS: {
+        id: 'AI_HUBS',
+        label: 'AI Superpowers',
+        // CPU / Chip Icon
+        mapPath: 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z M9 9h6v6H9z M9 1v3 M15 1v3 M9 20v3 M15 20v3 M20 9h3 M20 14h3 M1 9h3 M1 14h3',
+        color: '#06b6d4', // Cyan 500
+        description: 'Leading nations in AI compute & research',
+        countries: [
+            "United States", "China", "United Kingdom", "Israel", 
+            "Canada", "Singapore", "South Korea", "France", "Japan"
+        ]
+    },
+    OPEC: {
+        id: 'OPEC',
+        label: 'OPEC+ / Energy',
+        // Flame Icon
+        mapPath: 'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.1.2-2.2.6-3a7 7 0 0 0 .9 2.5z',
+        color: '#facc15', // Yellow 400
+        description: 'Major oil and energy producing nations',
+        countries: [
+            "Saudi Arabia", "Russia", "Iraq", "United Arab Emirates", "Kuwait", 
+            "Iran", "Nigeria", "Venezuela", "Algeria", "Libya", "Kazakhstan"
+        ]
+    },
     CONFLICT: {
         id: 'CONFLICT',
         label: 'Active Conflicts',
-        // Target / Bullseye (Replaces Crossed Swords)
+        // Target / Bullseye
         mapPath: 'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20 M12 6a6 6 0 1 1 0 12 6 6 0 0 1 0-12 M12 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4',
         color: '#ef4444', // Red 500
         description: 'Regions with active armed conflicts or wars',

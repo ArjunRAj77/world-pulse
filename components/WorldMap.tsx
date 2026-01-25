@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
-import { Home, Sparkles, Info } from 'lucide-react';
+import { Home, Sparkles } from 'lucide-react';
 import { STATIC_OVERLAYS, OverlayType } from '../services/staticData';
 import { ConflictZone } from '../types';
 
@@ -58,16 +58,20 @@ const WorldMap: React.FC<WorldMapProps> = ({
 
   // Helper to determine color based on score
   const getFillColor = (score: number | undefined) => {
-      if (score === undefined) return '#1e293b'; // Default Land (Slate 800)
+      if (score === undefined || score === null || isNaN(score)) return '#1e293b'; // Default Land (Slate 800)
       
-      // Threshold lowered to 0.05 to capture mild positive/negative sentiments
-      if (score > 0.05) {
-          // Positive: Interpolate to Emerald 500
-          return d3.interpolateRgb("#1e293b", "#10b981")(0.3 + (Math.min(1, score) * 0.7)); 
-      }
-      if (score < -0.05) {
-          // Negative: Interpolate to Red 500
-          return d3.interpolateRgb("#1e293b", "#ef4444")(0.3 + (Math.min(1, Math.abs(score)) * 0.7));
+      try {
+          // Threshold lowered to 0.05 to capture mild positive/negative sentiments
+          if (score > 0.05) {
+              // Positive: Interpolate to Emerald 500
+              return d3.interpolateRgb("#1e293b", "#10b981")(0.3 + (Math.min(1, score) * 0.7)); 
+          }
+          if (score < -0.05) {
+              // Negative: Interpolate to Red 500
+              return d3.interpolateRgb("#1e293b", "#ef4444")(0.3 + (Math.min(1, Math.abs(score)) * 0.7));
+          }
+      } catch (e) {
+          return '#1e293b';
       }
       
       // Neutral (-0.05 to 0.05): Sky 500 (Light Blue)
@@ -80,121 +84,147 @@ const WorldMap: React.FC<WorldMapProps> = ({
 
     if (!geoData.features || geoData.features.length === 0) return;
 
-    const { width, height } = dimensions;
-    const svg = d3.select(svgRef.current);
-    
-    // Clear previous contents
-    svg.selectAll('*').remove();
-    
-    // Create Group
-    const g = svg.append('g');
-    gRef.current = g;
+    try {
+        const { width, height } = dimensions;
+        const svg = d3.select(svgRef.current);
+        
+        // Remove existing listeners to prevent accumulation (Fixes strict mode / resize issues)
+        svg.on('.zoom', null);
+        
+        // Clear previous contents
+        svg.selectAll('*').remove();
+        
+        // Create Group
+        const g = svg.append('g');
+        gRef.current = g;
 
-    // Filter out Antarctica
-    const featuresWithoutAntarctica = {
-        type: "FeatureCollection",
-        features: geoData.features.filter((f: any) => f.properties.name !== "Antarctica")
-    };
-    
-    if (featuresWithoutAntarctica.features.length === 0) return;
+        // Filter valid features
+        const validFeatures = geoData.features.filter((f: any) => 
+            f && f.properties && f.properties.name && f.properties.name !== "Antarctica"
+        );
+        
+        const featuresWithoutAntarctica = {
+            type: "FeatureCollection",
+            features: validFeatures
+        };
+        
+        if (featuresWithoutAntarctica.features.length === 0) return;
 
-    const projection = d3.geoMercator()
-      .fitExtent([[20, 20], [width - 20, height - 20]], featuresWithoutAntarctica as any);
-    
-    projectionRef.current = projection;
+        const projection = d3.geoMercator()
+          .fitExtent([[20, 20], [width - 20, height - 20]], featuresWithoutAntarctica as any);
+        
+        projectionRef.current = projection;
 
-    const pathGenerator = d3.geoPath().projection(projection);
-    const graticule = d3.geoGraticule();
+        const pathGenerator = d3.geoPath().projection(projection);
+        const graticule = d3.geoGraticule();
 
-    // Zoom Behavior
-    const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([1, 12])
-      .translateExtent([[0, 0], [width, height]])
-      .on('zoom', (event) => {
-         g.attr('transform', event.transform.toString());
-         
-         const k = event.transform.k;
-         // Scale borders
-         g.selectAll('.country-block').attr('stroke-width', 0.5 / k);
-         g.selectAll('.graticule').attr('stroke-width', 0.5 / k);
+        // Zoom Behavior
+        const zoom = d3.zoom<SVGSVGElement, unknown>()
+          .scaleExtent([1, 12])
+          .translateExtent([[0, 0], [width, height]])
+          .on('zoom', (event) => {
+             if (!gRef.current) return;
+             
+             gRef.current.attr('transform', event.transform.toString());
+             
+             const k = event.transform.k;
+             // Scale borders
+             gRef.current.selectAll('.country-block').attr('stroke-width', 0.5 / k);
+             gRef.current.selectAll('.graticule').attr('stroke-width', 0.5 / k);
 
-         // Scale Icons: We inverse scale the 'transform' on the group or the path
-         // For paths, we might need to adjust scale attribute directly
-         g.selectAll('.overlay-icon-group')
-            .attr('transform', function(d: any) {
-                // Recover the original translation from the data datum we attached or recalculate
-                const centroid = pathGenerator.centroid(d);
-                if (isNaN(centroid[0]) || isNaN(centroid[1])) return null;
-                // Scale 1/k
-                const scale = Math.max(0.3, 1 / k); 
-                return `translate(${centroid[0]}, ${centroid[1]}) scale(${scale})`;
-            });
-      });
+             // Scale Icons
+             gRef.current.selectAll('.overlay-icon-group')
+                .attr('transform', function(d: any) {
+                    try {
+                        const centroid = pathGenerator.centroid(d);
+                        if (!centroid || isNaN(centroid[0]) || isNaN(centroid[1])) return null;
+                        const scale = Math.max(0.3, 1 / k); 
+                        return `translate(${centroid[0]}, ${centroid[1]}) scale(${scale})`;
+                    } catch (e) { return null; }
+                });
+          });
 
-    zoomRef.current = zoom;
-    svg.call(zoom);
+        zoomRef.current = zoom;
+        svg.call(zoom);
 
-    // --- DRAWING ORDER ---
+        // --- DRAWING ORDER ---
 
-    // 1. Ocean
-    g.append('rect')
-      .attr('x', -width * 2)
-      .attr('y', -height * 2)
-      .attr('width', width * 5)
-      .attr('height', height * 5)
-      .attr('fill', '#0f172a') // Slate 900
-      .attr('stroke', 'none');
+        // 1. Ocean
+        g.append('rect')
+          .attr('x', -width * 2)
+          .attr('y', -height * 2)
+          .attr('width', width * 5)
+          .attr('height', height * 5)
+          .attr('fill', '#0f172a') // Slate 900
+          .attr('stroke', 'none');
 
-    // 2. Graticules
-    g.append('path')
-      .datum(graticule)
-      .attr('class', 'graticule')
-      .attr('d', pathGenerator as any)
-      .attr('fill', 'none')
-      .attr('stroke', '#334155')
-      .attr('stroke-width', 0.5)
-      .attr('stroke-opacity', 0.3);
+        // 2. Graticules
+        g.append('path')
+          .datum(graticule)
+          .attr('class', 'graticule')
+          .attr('d', pathGenerator as any)
+          .attr('fill', 'none')
+          .attr('stroke', '#334155')
+          .attr('stroke-width', 0.5)
+          .attr('stroke-opacity', 0.3);
 
-    // 3. Countries
-    // Note: We do NOT attach event listeners here anymore to avoid stale closures.
-    // They are attached in a separate useEffect below.
-    const paths = g.selectAll<SVGPathElement, any>('.country-block')
-      .data(geoData.features, (d: any) => d.properties.name);
+        // 3. Countries
+        const paths = g.selectAll<SVGPathElement, any>('.country-block')
+          .data(featuresWithoutAntarctica.features, (d: any) => d.properties.name);
 
-    paths.enter()
-      .append('path')
-      .attr('class', 'country-block')
-      .attr('fill', '#1e293b') // Initial Default Land
-      .attr('stroke', '#334155')
-      .attr('stroke-width', 0.5)
-      .style('cursor', 'pointer')
-      .attr('d', pathGenerator as any);
+        paths.enter()
+          .append('path')
+          .attr('class', 'country-block')
+          .attr('fill', '#1e293b') // Initial Default Land
+          .attr('stroke', '#334155')
+          .attr('stroke-width', 0.5)
+          .style('cursor', 'pointer')
+          .attr('d', pathGenerator as any);
 
-    // 4. Overlays Group (Created once)
-    g.append('g').attr('class', 'overlay-group');
+        // 4. Overlays Group (Created once)
+        g.append('g').attr('class', 'overlay-group').style('pointer-events', 'none');
 
-    // Initial Zoom
-    if (!selectedCountry) {
-        const initialTransform = d3.zoomIdentity;
-        svg.call(zoom.transform, initialTransform);
+        // Initial Zoom
+        if (!selectedCountry) {
+            const initialTransform = d3.zoomIdentity;
+            svg.call(zoom.transform, initialTransform);
+        }
+
+    } catch (e) {
+        console.error("Map Initialization Error:", e);
     }
-
+    
+    // Cleanup on unmount or re-run
+    return () => {
+        if (svgRef.current) {
+            d3.select(svgRef.current).on('.zoom', null);
+        }
+    };
   }, [geoData, dimensions]); 
 
   // 3. Update Colors (Sentiment)
   useEffect(() => {
     if (!gRef.current || !sentimentMap) return;
 
-    gRef.current.selectAll('.country-block')
-      .transition()
-      .duration(700)
-      .attr('fill', (d: any) => getFillColor(sentimentMap[d.properties.name]))
-      .attr('class', (d: any) => {
-          const score = sentimentMap[d.properties.name];
-          return (score !== undefined && Math.abs(score) > 0.2) 
-            ? 'country-block animate-pulse-sentiment' 
-            : 'country-block';
-      });
+    try {
+        gRef.current.selectAll('.country-block')
+          .transition()
+          .duration(700)
+          .attr('fill', (d: any) => {
+              // Safety check for datum
+              if (!d || !d.properties) return '#1e293b';
+              return getFillColor(sentimentMap[d.properties.name]);
+          })
+          .attr('class', (d: any) => {
+              if (!d || !d.properties) return 'country-block';
+              const score = sentimentMap[d.properties.name];
+              return (score !== undefined && score !== null && Math.abs(score) > 0.2) 
+                ? 'country-block animate-pulse-sentiment' 
+                : 'country-block';
+          });
+    } catch (e) {
+        console.error("Sentiment Update Error:", e);
+    }
 
   }, [sentimentMap, geoData, dimensions]);
 
@@ -202,92 +232,102 @@ const WorldMap: React.FC<WorldMapProps> = ({
   useEffect(() => {
     if (!gRef.current || !geoData || !projectionRef.current) return;
     
-    const svg = d3.select(svgRef.current);
-    const k = d3.zoomTransform(svg.node()!).k || 1;
-    const pathGenerator = d3.geoPath().projection(projectionRef.current);
-    const overlayGroup = gRef.current.select('.overlay-group');
+    try {
+        const svg = d3.select(svgRef.current);
+        const k = d3.zoomTransform(svg.node()!).k || 1;
+        // Re-create path generator with current projection ref to avoid stale closures
+        const pathGenerator = d3.geoPath().projection(projectionRef.current);
+        const overlayGroup = gRef.current.select('.overlay-group');
 
-    // Clear existing
-    overlayGroup.selectAll('*').remove();
+        // Clear existing
+        overlayGroup.selectAll('*').remove();
 
-    if (activeOverlay === 'NONE') return;
+        if (activeOverlay === 'NONE') return;
 
-    const config = STATIC_OVERLAYS[activeOverlay];
-    if (!config || !config.mapPath) return;
+        const config = STATIC_OVERLAYS[activeOverlay];
+        if (!config || !config.mapPath) return;
 
-    // Use dynamic countries if provided, else fallback to static config
-    const targetCountries = customOverlayCountries && customOverlayCountries.length > 0 
-        ? customOverlayCountries 
-        : config.countries;
-    
-    // Filter features that match the active overlay list
-    const featuresToOverlay = geoData.features.filter((f: any) => 
-        targetCountries.includes(f.properties.name)
-    );
-    
-    // Create groups for each icon to handle translation and scaling
-    const groups = overlayGroup.selectAll('.overlay-icon-group')
-        .data(featuresToOverlay)
-        .enter()
-        .append('g')
-        .attr('class', 'overlay-icon-group')
-        .attr('transform', (d: any) => {
-            const centroid = pathGenerator.centroid(d);
-            if (isNaN(centroid[0]) || isNaN(centroid[1])) return null;
-            // Initial scale
-            const scale = Math.max(0.3, 1 / k);
-            return `translate(${centroid[0]}, ${centroid[1]}) scale(${scale})`;
-        });
+        // Use dynamic countries if provided, else fallback to static config
+        const targetCountries = customOverlayCountries && customOverlayCountries.length > 0 
+            ? customOverlayCountries 
+            : config.countries;
+        
+        // Filter features that match the active overlay list
+        const featuresToOverlay = geoData.features.filter((f: any) => 
+            f && f.properties && targetCountries.includes(f.properties.name)
+        );
+        
+        // Create groups for each icon to handle translation and scaling
+        const groups = overlayGroup.selectAll('.overlay-icon-group')
+            .data(featuresToOverlay)
+            .enter()
+            .append('g')
+            .attr('class', 'overlay-icon-group')
+            .attr('transform', (d: any) => {
+                const centroid = pathGenerator.centroid(d);
+                if (!centroid || isNaN(centroid[0]) || isNaN(centroid[1])) return null;
+                // Initial scale
+                const scale = Math.max(0.3, 1 / k);
+                return `translate(${centroid[0]}, ${centroid[1]}) scale(${scale})`;
+            });
 
-    // Append Path to Group
-    groups.append('path')
-        .attr('d', config.mapPath)
-        .attr('fill', config.color)
-        .attr('stroke', '#0f172a') // Dark stroke for contrast
-        .attr('stroke-width', 1)
-        // Center the 24x24 icon. Translate -12, -12
-        .attr('transform', 'translate(-12, -12)') 
-        .attr('opacity', 0)
-        .transition()
-        .duration(500)
-        .attr('opacity', 1);
+        // Append Path to Group
+        groups.append('path')
+            .attr('d', config.mapPath)
+            .attr('fill', config.color)
+            .attr('stroke', '#0f172a') // Dark stroke for contrast
+            .attr('stroke-width', 1)
+            // Center the 24x24 icon. Translate -12, -12
+            .attr('transform', 'translate(-12, -12)') 
+            .attr('opacity', 0)
+            .transition()
+            .duration(500)
+            .attr('opacity', 1);
 
-    // Add Pulse effect behind
-    groups.insert('circle', 'path')
-        .attr('r', 8)
-        .attr('fill', config.color)
-        .attr('opacity', 0.4)
-        .attr('class', 'animate-ping-slow');
+        // Add Pulse effect behind
+        groups.insert('circle', 'path')
+            .attr('r', 8)
+            .attr('fill', config.color)
+            .attr('opacity', 0.4)
+            .attr('class', 'animate-ping-slow');
 
+    } catch (e) {
+        console.error("Overlay Update Error:", e);
+    }
   }, [activeOverlay, geoData, dimensions, customOverlayCountries, conflictZones]);
 
   // 5. Handle Focus Zoom
   useEffect(() => {
     if (!selectedCountry || !zoomRef.current || !svgRef.current || dimensions.width === 0) return;
-    
     if (!geoData || !geoData.features || geoData.features.length === 0) return;
 
-    const pathGenerator = d3.geoPath().projection(projectionRef.current);
-    const feature = geoData.features.find((f: any) => f.properties.name === selectedCountry);
-    
-    if (feature) {
-        const bounds = pathGenerator.bounds(feature);
-        const dx = bounds[1][0] - bounds[0][0];
-        const dy = bounds[1][1] - bounds[0][1];
-        const x = (bounds[0][0] + bounds[1][0]) / 2;
-        const y = (bounds[0][1] + bounds[1][1]) / 2;
+    try {
+        const pathGenerator = d3.geoPath().projection(projectionRef.current);
+        const feature = geoData.features.find((f: any) => f && f.properties && f.properties.name === selectedCountry);
         
-        const s = Math.max(1, Math.min(8, 0.9 / Math.max(dx / dimensions.width, dy / dimensions.height)));
-        
-        const transform = d3.zoomIdentity
-            .translate(dimensions.width / 2, dimensions.height / 2)
-            .scale(s)
-            .translate(-x, -y);
+        if (feature) {
+            const bounds = pathGenerator.bounds(feature);
+            if (!bounds || bounds[0][0] === Infinity) return;
 
-        d3.select(svgRef.current).transition()
-          .duration(1000)
-          .ease(d3.easeCubicOut)
-          .call(zoomRef.current.transform, transform);
+            const dx = bounds[1][0] - bounds[0][0];
+            const dy = bounds[1][1] - bounds[0][1];
+            const x = (bounds[0][0] + bounds[1][0]) / 2;
+            const y = (bounds[0][1] + bounds[1][1]) / 2;
+            
+            const s = Math.max(1, Math.min(8, 0.9 / Math.max(dx / dimensions.width, dy / dimensions.height)));
+            
+            const transform = d3.zoomIdentity
+                .translate(dimensions.width / 2, dimensions.height / 2)
+                .scale(s)
+                .translate(-x, -y);
+
+            d3.select(svgRef.current).transition()
+              .duration(1000)
+              .ease(d3.easeCubicOut)
+              .call(zoomRef.current.transform, transform);
+        }
+    } catch (e) {
+        console.error("Zoom Focus Error:", e);
     }
   }, [selectedCountry, dimensions, geoData]);
 
@@ -295,64 +335,75 @@ const WorldMap: React.FC<WorldMapProps> = ({
   useEffect(() => {
     if (!gRef.current) return;
 
-    // We select all existing country paths and re-apply event listeners
-    gRef.current.selectAll<SVGPathElement, any>('.country-block')
-      .on('mouseover', function(event, d: any) {
-        const sel = d3.select(this);
-        sel.raise();
-        // Keep overlays on top after raise
-        gRef.current?.select('.overlay-group').raise();
-
-        sel.attr('stroke', '#f8fafc').attr('stroke-width', 1.5 / (d3.zoomTransform(svgRef.current!).k || 1));
-        
-        if (tooltipRef.current) {
-            tooltipRef.current.style.opacity = '1';
+    try {
+        // We select all existing country paths and re-apply event listeners
+        gRef.current.selectAll<SVGPathElement, any>('.country-block')
+          .on('mouseover', function(event, d: any) {
+            if (!d || !d.properties) return;
+            const sel = d3.select(this);
+            sel.raise();
             
-            // Build tooltip content
-            let content = `<strong>${d.properties.name}</strong>`;
-            
-            // Add conflict info if available (Using fresh state)
-            if (activeOverlay === 'CONFLICT' && conflictZones) {
-                const zone = conflictZones.find(c => c.countryName === d.properties.name);
-                if (zone) {
-                    content += `
-                        <div class="mt-2 pt-2 border-t border-red-500/30 flex flex-col gap-1">
-                            <div class="flex items-center gap-1.5 text-red-400 text-[10px] font-bold uppercase tracking-wider">
-                                <span>⚠️ Active Conflict</span>
-                            </div>
-                            <div class="text-slate-300 text-[10px] leading-relaxed max-w-[180px] font-normal">
-                                ${zone.summary}
-                            </div>
-                        </div>
-                    `;
-                }
+            // Safety check for overlay group
+            if (gRef.current) {
+                const overlayGroup = gRef.current.select('.overlay-group');
+                if (!overlayGroup.empty()) overlayGroup.raise();
             }
 
-            tooltipRef.current.innerHTML = content;
-            tooltipRef.current.style.left = `${event.pageX + 15}px`;
-            tooltipRef.current.style.top = `${event.pageY + 15}px`;
-        }
-      })
-      .on('mousemove', (event) => {
-        if (tooltipRef.current) {
-            tooltipRef.current.style.left = `${event.pageX + 15}px`;
-            tooltipRef.current.style.top = `${event.pageY + 15}px`;
-        }
-      })
-      .on('mouseout', function(event, d: any) {
-        const sel = d3.select(this);
-        sel.attr('stroke', '#334155').attr('stroke-width', 0.5 / (d3.zoomTransform(svgRef.current!).k || 1));
-        
-        if (tooltipRef.current) {
-            tooltipRef.current.style.opacity = '0';
-        }
-      })
-      .on('click', (event, d: any) => {
-        event.stopPropagation();
-        onCountrySelect(d.properties.name);
-      });
+            sel.attr('stroke', '#f8fafc').attr('stroke-width', 1.5 / (d3.zoomTransform(svgRef.current!).k || 1));
+            
+            if (tooltipRef.current) {
+                tooltipRef.current.style.opacity = '1';
+                
+                // Build tooltip content
+                let content = `<strong>${d.properties.name}</strong>`;
+                
+                // Add conflict info if available (Using fresh state)
+                if (activeOverlay === 'CONFLICT' && conflictZones) {
+                    const zone = conflictZones.find(c => c.countryName === d.properties.name);
+                    if (zone) {
+                        content += `
+                            <div class="mt-2 pt-2 border-t border-red-500/30 flex flex-col gap-1">
+                                <div class="flex items-center gap-1.5 text-red-400 text-[10px] font-bold uppercase tracking-wider">
+                                    <span>⚠️ Active Conflict</span>
+                                </div>
+                                <div class="text-slate-300 text-[10px] leading-relaxed max-w-[180px] font-normal">
+                                    ${zone.summary}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
 
-  }, [activeOverlay, conflictZones, onCountrySelect]); // Effect depends on changing props
+                tooltipRef.current.innerHTML = content;
+                tooltipRef.current.style.left = `${event.pageX + 15}px`;
+                tooltipRef.current.style.top = `${event.pageY + 15}px`;
+            }
+          })
+          .on('mousemove', (event) => {
+            if (tooltipRef.current) {
+                tooltipRef.current.style.left = `${event.pageX + 15}px`;
+                tooltipRef.current.style.top = `${event.pageY + 15}px`;
+            }
+          })
+          .on('mouseout', function(event, d: any) {
+            const sel = d3.select(this);
+            sel.attr('stroke', '#334155').attr('stroke-width', 0.5 / (d3.zoomTransform(svgRef.current!).k || 1));
+            
+            if (tooltipRef.current) {
+                tooltipRef.current.style.opacity = '0';
+            }
+          })
+          .on('click', (event, d: any) => {
+            event.stopPropagation();
+            if (d && d.properties) {
+                onCountrySelect(d.properties.name);
+            }
+          });
+    } catch (e) {
+        console.error("Event Binding Error:", e);
+    }
+
+  }, [activeOverlay, conflictZones, onCountrySelect, geoData, dimensions]); // Added geoData and dimensions
 
   const handleReset = () => {
     if (svgRef.current && zoomRef.current) {
