@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { CountrySentimentData, SentimentType, PredictionType } from "../types";
+import { CountrySentimentData, SentimentType, PredictionType, ConflictZone } from "../types";
 
 // Initialize Gemini Client
 // @google/genai Coding Guidelines: apiKey must be from process.env.API_KEY
@@ -44,26 +44,36 @@ export const validateApiKeyConnection = async (): Promise<{ success: boolean; me
 };
 
 /**
- * Fetch list of countries with active conflicts
+ * Fetch list of countries with active conflicts and a brief summary
  */
-export const fetchActiveConflicts = async (): Promise<string[]> => {
+export const fetchActiveConflicts = async (): Promise<ConflictZone[]> => {
     try {
         const response = await ai.models.generateContent({
             model: "gemini-3-flash-preview",
-            contents: `Identify countries with active armed conflicts (wars, civil wars, insurgencies) as of ${new Date().toDateString()}.
-            Return a JSON object with a 'countries' array.
+            contents: `Identify countries with CURRENTLY active armed conflicts (wars, civil wars, insurgencies) as of ${new Date().toDateString()}.
+            Return a JSON object with a 'conflicts' array containing the country name and a brief summary of the conflict.
             RULES:
-            1. Use common English names (e.g. "Russia", "Syria", "Myanmar").
-            2. For "Israel/Gaza", include "Israel" and "Palestine".
-            3. Include major hotspots like Ukraine, Sudan, Yemen, DRC.`,
+            1. ONLY include conflicts active right now. EXCLUDE historical conflicts, resolved conflicts, or those with stable peace treaties.
+            2. Use common English names (e.g. "Russia", "Syria", "Myanmar").
+            3. For "Israel/Gaza", include "Israel" and "Palestine".
+            4. Summary must be specific (e.g. "Civil war between X and Y" or "Border clashes with Z").
+            5. Summary MAX 25 words.
+            6. Do NOT use generic phrases like "Active conflict reported".
+            7. Include major hotspots like Ukraine, Sudan, Yemen, DRC, Myanmar.`,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
-                        countries: { 
+                        conflicts: { 
                             type: Type.ARRAY, 
-                            items: { type: Type.STRING } 
+                            items: { 
+                                type: Type.OBJECT,
+                                properties: {
+                                    countryName: { type: Type.STRING },
+                                    summary: { type: Type.STRING, description: "Specific details of the conflict (max 25 words). Do not use generic placeholders." }
+                                }
+                            } 
                         }
                     }
                 },
@@ -78,7 +88,12 @@ export const fetchActiveConflicts = async (): Promise<string[]> => {
         }
 
         const data = JSON.parse(text);
-        return (data.countries || []).map((c: string) => normalizeCountryName(c));
+        const rawConflicts = data.conflicts || [];
+
+        return rawConflicts.map((c: any) => ({
+            countryName: normalizeCountryName(c.countryName),
+            summary: c.summary || "Conflict detected."
+        }));
 
     } catch (e) {
         console.error("[GeminiService] Failed to fetch conflicts:", e);

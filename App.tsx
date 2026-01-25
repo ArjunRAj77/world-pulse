@@ -8,7 +8,7 @@ import GlobalSummary from './components/GlobalSummary';
 import { validateApiKeyConnection, KEY_COUNTRIES, normalizeCountryName, fetchActiveConflicts } from './services/geminiService';
 import { syncManager, ingestSpecificCountry } from './services/scheduler';
 import { initDB, getCountryData, getAllCountryData, testConnection, getActiveConflicts, saveActiveConflicts } from './services/db';
-import { CountrySentimentData } from './types';
+import { CountrySentimentData, ConflictZone } from './types';
 import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar, Terminal, Coffee, Map as MapIcon, HeartHandshake, Layers, Shield, ChevronDown, Radiation, Rocket, Swords } from 'lucide-react';
 import { OverlayType, STATIC_OVERLAYS } from './services/staticData';
 import clsx from 'clsx';
@@ -31,7 +31,7 @@ function App() {
   const [isLayersMenuOpen, setIsLayersMenuOpen] = useState(false);
   
   // Dynamic Layers Data
-  const [conflictCountries, setConflictCountries] = useState<string[]>([]);
+  const [conflictZones, setConflictZones] = useState<ConflictZone[]>([]);
   const [isConflictLoading, setIsConflictLoading] = useState(false);
 
   // Auto Pilot State
@@ -80,14 +80,21 @@ function App() {
         try {
             let conflicts = await getActiveConflicts();
             
+            // Check if we have legacy data (generic summaries)
+            const hasLegacyData = conflicts.some(c => c.summary === "Active conflict reported.");
+
             if (conflicts.length > 0) {
-                setConflictCountries(conflicts);
-            } else {
-                // Auto-populate if empty
+                setConflictZones(conflicts);
+            }
+            
+            // Auto-populate if empty OR if we detect stale data
+            if (conflicts.length === 0 || hasLegacyData) {
+                if (hasLegacyData) console.log("[App] Detected legacy conflict data. Refreshing via AI...");
+                
                 const freshConflicts = await fetchActiveConflicts();
                 if (freshConflicts.length > 0) {
                     await saveActiveConflicts(freshConflicts);
-                    setConflictCountries(freshConflicts);
+                    setConflictZones(freshConflicts);
                 }
             }
         } catch (e) {
@@ -171,6 +178,11 @@ function App() {
     if (!geoData) return [];
     return geoData.features.map((f: any) => f.properties.name).sort();
   }, [geoData]);
+
+  // Derived list of conflict country names for map overlay rendering
+  const conflictCountryNames = useMemo(() => {
+      return conflictZones.map(z => z.countryName);
+  }, [conflictZones]);
 
   // 3. API Check
   useEffect(() => {
@@ -335,7 +347,7 @@ function App() {
       const newConflicts = await fetchActiveConflicts();
       if (newConflicts.length > 0) {
           await saveActiveConflicts(newConflicts);
-          setConflictCountries(newConflicts);
+          setConflictZones(newConflicts);
           alert(`Scan Complete. Found ${newConflicts.length} conflict zones.`);
       } else {
           alert("Scan returned no results or failed.");
@@ -718,7 +730,8 @@ function App() {
             selectedCountry={selectedCountry}
             sentimentMap={sentimentMap}
             activeOverlay={activeOverlay}
-            customOverlayCountries={activeOverlay === 'CONFLICT' ? conflictCountries : undefined}
+            customOverlayCountries={activeOverlay === 'CONFLICT' ? conflictCountryNames : undefined}
+            conflictZones={activeOverlay === 'CONFLICT' ? conflictZones : undefined}
         />
       </main>
 

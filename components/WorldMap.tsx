@@ -1,8 +1,9 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
-import { Home } from 'lucide-react';
+import { Home, Sparkles, Info } from 'lucide-react';
 import { STATIC_OVERLAYS, OverlayType } from '../services/staticData';
+import { ConflictZone } from '../types';
 
 interface WorldMapProps {
   onCountrySelect: (countryName: string) => void;
@@ -10,10 +11,19 @@ interface WorldMapProps {
   sentimentMap: Record<string, number>; 
   geoData: any;
   activeOverlay: OverlayType;
-  customOverlayCountries?: string[]; // New prop for dynamic layers
+  customOverlayCountries?: string[]; // Kept for generic lists
+  conflictZones?: ConflictZone[]; // New prop for detailed conflict data
 }
 
-const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, sentimentMap, geoData, activeOverlay, customOverlayCountries }) => {
+const WorldMap: React.FC<WorldMapProps> = ({ 
+    onCountrySelect, 
+    selectedCountry, 
+    sentimentMap, 
+    geoData, 
+    activeOverlay, 
+    customOverlayCountries,
+    conflictZones
+}) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -146,6 +156,8 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       .attr('stroke-opacity', 0.3);
 
     // 3. Countries
+    // Note: We do NOT attach event listeners here anymore to avoid stale closures.
+    // They are attached in a separate useEffect below.
     const paths = g.selectAll<SVGPathElement, any>('.country-block')
       .data(geoData.features, (d: any) => d.properties.name);
 
@@ -156,40 +168,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
       .attr('stroke', '#334155')
       .attr('stroke-width', 0.5)
       .style('cursor', 'pointer')
-      .attr('d', pathGenerator as any)
-      .on('mouseover', function(event, d: any) {
-        const sel = d3.select(this);
-        sel.raise();
-        // Keep overlays on top after raise
-        g.selectAll('.overlay-group').raise();
-
-        sel.attr('stroke', '#f8fafc').attr('stroke-width', 1.5 / (d3.zoomTransform(svg.node()!).k || 1));
-        
-        if (tooltipRef.current) {
-            tooltipRef.current.style.opacity = '1';
-            tooltipRef.current.innerText = d.properties.name;
-            tooltipRef.current.style.left = `${event.pageX + 15}px`;
-            tooltipRef.current.style.top = `${event.pageY + 15}px`;
-        }
-      })
-      .on('mousemove', (event) => {
-        if (tooltipRef.current) {
-            tooltipRef.current.style.left = `${event.pageX + 15}px`;
-            tooltipRef.current.style.top = `${event.pageY + 15}px`;
-        }
-      })
-      .on('mouseout', function(event, d: any) {
-        const sel = d3.select(this);
-        sel.attr('stroke', '#334155').attr('stroke-width', 0.5 / (d3.zoomTransform(svg.node()!).k || 1));
-        
-        if (tooltipRef.current) {
-            tooltipRef.current.style.opacity = '0';
-        }
-      })
-      .on('click', (event, d: any) => {
-        event.stopPropagation();
-        onCountrySelect(d.properties.name);
-      });
+      .attr('d', pathGenerator as any);
 
     // 4. Overlays Group (Created once)
     g.append('g').attr('class', 'overlay-group');
@@ -280,7 +259,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
         .attr('opacity', 0.4)
         .attr('class', 'animate-ping-slow');
 
-  }, [activeOverlay, geoData, dimensions, customOverlayCountries]);
+  }, [activeOverlay, geoData, dimensions, customOverlayCountries, conflictZones]);
 
   // 5. Handle Focus Zoom
   useEffect(() => {
@@ -311,6 +290,69 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
           .call(zoomRef.current.transform, transform);
     }
   }, [selectedCountry, dimensions, geoData]);
+
+  // 6. Update Interactions (Tooltips & Events) - Re-binds when props change to fix stale closures
+  useEffect(() => {
+    if (!gRef.current) return;
+
+    // We select all existing country paths and re-apply event listeners
+    gRef.current.selectAll<SVGPathElement, any>('.country-block')
+      .on('mouseover', function(event, d: any) {
+        const sel = d3.select(this);
+        sel.raise();
+        // Keep overlays on top after raise
+        gRef.current?.select('.overlay-group').raise();
+
+        sel.attr('stroke', '#f8fafc').attr('stroke-width', 1.5 / (d3.zoomTransform(svgRef.current!).k || 1));
+        
+        if (tooltipRef.current) {
+            tooltipRef.current.style.opacity = '1';
+            
+            // Build tooltip content
+            let content = `<strong>${d.properties.name}</strong>`;
+            
+            // Add conflict info if available (Using fresh state)
+            if (activeOverlay === 'CONFLICT' && conflictZones) {
+                const zone = conflictZones.find(c => c.countryName === d.properties.name);
+                if (zone) {
+                    content += `
+                        <div class="mt-2 pt-2 border-t border-red-500/30 flex flex-col gap-1">
+                            <div class="flex items-center gap-1.5 text-red-400 text-[10px] font-bold uppercase tracking-wider">
+                                <span>⚠️ Active Conflict</span>
+                            </div>
+                            <div class="text-slate-300 text-[10px] leading-relaxed max-w-[180px] font-normal">
+                                ${zone.summary}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            tooltipRef.current.innerHTML = content;
+            tooltipRef.current.style.left = `${event.pageX + 15}px`;
+            tooltipRef.current.style.top = `${event.pageY + 15}px`;
+        }
+      })
+      .on('mousemove', (event) => {
+        if (tooltipRef.current) {
+            tooltipRef.current.style.left = `${event.pageX + 15}px`;
+            tooltipRef.current.style.top = `${event.pageY + 15}px`;
+        }
+      })
+      .on('mouseout', function(event, d: any) {
+        const sel = d3.select(this);
+        sel.attr('stroke', '#334155').attr('stroke-width', 0.5 / (d3.zoomTransform(svgRef.current!).k || 1));
+        
+        if (tooltipRef.current) {
+            tooltipRef.current.style.opacity = '0';
+        }
+      })
+      .on('click', (event, d: any) => {
+        event.stopPropagation();
+        onCountrySelect(d.properties.name);
+      });
+
+  }, [activeOverlay, conflictZones, onCountrySelect]); // Effect depends on changing props
 
   const handleReset = () => {
     if (svgRef.current && zoomRef.current) {
@@ -347,8 +389,25 @@ const WorldMap: React.FC<WorldMapProps> = ({ onCountrySelect, selectedCountry, s
 
         <div 
             ref={tooltipRef}
-            className="fixed pointer-events-none bg-slate-900/95 border border-slate-700 text-slate-200 text-xs font-bold px-3 py-2 rounded shadow-xl z-50 backdrop-blur opacity-0 transition-opacity duration-150 uppercase tracking-widest whitespace-nowrap"
+            className="fixed pointer-events-none bg-slate-900/95 border border-slate-700 text-slate-200 text-xs font-bold px-3 py-2 rounded shadow-xl z-50 backdrop-blur opacity-0 transition-opacity duration-150 uppercase tracking-widest"
         />
+
+        {/* AI WARNING BANNER FOR CONFLICT LAYER */}
+        {activeOverlay === 'CONFLICT' && (
+            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 bg-red-950/80 backdrop-blur-md border border-red-500/30 px-6 py-3 rounded-full shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-[fadeIn_0.5s_ease-out] pointer-events-none">
+                <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-red-500/20 border border-red-500/30">
+                     <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                </div>
+                <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-red-200 uppercase tracking-widest leading-none mb-1">
+                        AI GENERATED: Conflict Analysis
+                    </span>
+                    <span className="text-[10px] text-red-200/70 leading-none font-mono">
+                        Conflict zones identified by Gemini from live news. Real-time coverage may vary.
+                    </span>
+                </div>
+            </div>
+        )}
         
         <style>{`
             @keyframes pulseBrightness {

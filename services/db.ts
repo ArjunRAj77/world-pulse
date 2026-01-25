@@ -1,7 +1,7 @@
 
 import { db, isFirebaseConfigured } from './firebaseConfig';
 import { doc, getDoc, setDoc, getDocs, collection, query, where, limit, orderBy } from 'firebase/firestore';
-import { CountrySentimentData, HistoricalPoint } from '../types';
+import { CountrySentimentData, HistoricalPoint, ConflictZone } from '../types';
 
 // Collections
 const LATEST_COLLECTION = 'latest_sentiments';
@@ -166,7 +166,7 @@ export const getAllCountryData = async (): Promise<CountrySentimentData[]> => {
 
 // --- CONFLICT DATA METHODS ---
 
-export const getActiveConflicts = async (): Promise<string[]> => {
+export const getActiveConflicts = async (): Promise<ConflictZone[]> => {
     if (!isFirebaseConfigured) {
         return [];
     }
@@ -175,7 +175,15 @@ export const getActiveConflicts = async (): Promise<string[]> => {
         const docRef = doc(db, CONFLICTS_COLLECTION, 'current');
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-            return docSnap.data().countries || [];
+            const data = docSnap.data();
+            // Backward compatibility check for old array of strings
+            const items = data.conflicts || data.countries || [];
+            
+            // Normalize string[] to ConflictZone[] if old data exists
+            if (items.length > 0 && typeof items[0] === 'string') {
+                return items.map((c: string) => ({ countryName: c, summary: "Active conflict reported." }));
+            }
+            return items;
         }
         return [];
     } catch (e) {
@@ -184,15 +192,18 @@ export const getActiveConflicts = async (): Promise<string[]> => {
     }
 };
 
-export const saveActiveConflicts = async (countries: string[]) => {
+export const saveActiveConflicts = async (conflicts: ConflictZone[]) => {
     if (!isFirebaseConfigured) return;
     
     try {
         const docRef = doc(db, CONFLICTS_COLLECTION, 'current');
+        // setDoc replaces the content by default (unless merge: true is passed)
+        // This ensures old/finished conflicts are removed.
         await setDoc(docRef, {
-            countries,
+            conflicts,
             lastUpdated: Date.now()
         });
+        console.log(`[DB] Active conflicts overwritten. Count: ${conflicts.length}`);
     } catch (e) {
         console.error("[DB] Failed to save conflicts", e);
     }

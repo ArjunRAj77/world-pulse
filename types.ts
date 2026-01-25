@@ -66,3 +66,8 @@ export interface GeoJSONData {
   type: string;
   features: MapFeature[];
 }
+
+export interface ConflictZone {
+    countryName: string;
+    summary: string;
+}
