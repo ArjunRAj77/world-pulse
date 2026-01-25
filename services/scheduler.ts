@@ -1,20 +1,24 @@
-import { fetchCountrySentiment } from './geminiService';
+
+import { fetchBatchCountrySentiment } from './geminiService';
 import { saveCountryData, getCountryData } from './db';
 
 // STRICT RATE LIMITING FOR FREE TIER
 // Limit: 5 Requests Per Minute (RPM) => 1 request every 12 seconds.
 // We set delay to 15 seconds (4 RPM) to provide a safety buffer.
 const SAFE_DELAY_MS = 15000; 
+const BATCH_SIZE = 5; // Optimized to 5: Safe balance between speed and output token limits
 
 /**
- * Helper to fetch and save a single country
+ * Helper to fetch and save a batch of countries
  * Returns 3 states: 'SUCCESS', 'SKIP', 'FATAL'
  */
-export const ingestSpecificCountry = async (countryName: string): Promise<'SUCCESS' | 'SKIP' | 'FATAL'> => {
+export const ingestBatch = async (countries: string[]): Promise<'SUCCESS' | 'SKIP' | 'FATAL'> => {
     try {
-        const data = await fetchCountrySentiment(countryName);
-        if (data) {
-            await saveCountryData(data);
+        const results = await fetchBatchCountrySentiment(countries);
+        if (results && results.length > 0) {
+            for (const data of results) {
+                await saveCountryData(data);
+            }
             return 'SUCCESS';
         }
         return 'SKIP';
@@ -23,7 +27,7 @@ export const ingestSpecificCountry = async (countryName: string): Promise<'SUCCE
             console.error(`[Scheduler] FATAL: Daily Quota or Rate Limit hit hard. Stopping queue.`);
             return 'FATAL';
         }
-        console.error(`[Scheduler] Failed: ${countryName}`, error);
+        console.error(`[Scheduler] Failed Batch: ${countries.join(', ')}`, error);
         return 'SKIP';
     }
 };
@@ -51,6 +55,10 @@ class SyncManager {
     
     // Tracks the timestamp of the start of the last API call
     private lastRequestTime = 0;
+
+    public get isSyncing() {
+        return this.isRunning;
+    }
 
     /**
      * Start the daily sync process
@@ -117,23 +125,30 @@ class SyncManager {
         }
 
         this.isRunning = true;
-        const country = this.queue[0];
         
-        this.emit('ACTIVE', this.queue.length, country);
+        // Take a batch of countries
+        const batch = this.queue.slice(0, BATCH_SIZE);
+        const batchNames = batch.join(", ");
+        
+        this.emit('ACTIVE', this.queue.length, batchNames);
 
         try {
             // --- OPTIMIZATION: Freshness Check ---
-            let needsUpdate = true;
+            let countriesToFetch: string[] = [];
             
-            if (!this.forceMode) {
-                const existingData = await getCountryData(country);
-                // If data exists and is less than 22 hours old, skip it.
-                if (existingData && (Date.now() - existingData.lastUpdated < 1000 * 60 * 60 * 22)) {
-                    needsUpdate = false;
+            if (this.forceMode) {
+                countriesToFetch = batch;
+            } else {
+                for (const country of batch) {
+                    const existingData = await getCountryData(country);
+                    // If data missing or old (>22h), add to fetch list
+                    if (!existingData || (Date.now() - existingData.lastUpdated > 1000 * 60 * 60 * 22)) {
+                        countriesToFetch.push(country);
+                    }
                 }
             }
 
-            if (needsUpdate) {
+            if (countriesToFetch.length > 0) {
                 // --- CRITICAL: Strict Rate Limit Check ---
                 const now = Date.now();
                 const timeSinceLast = now - this.lastRequestTime;
@@ -146,25 +161,27 @@ class SyncManager {
 
                 this.lastRequestTime = Date.now();
                 
-                // Perform the expensive API call
-                const result = await ingestSpecificCountry(country);
+                // Perform the expensive API call for the filtered batch
+                const result = await ingestBatch(countriesToFetch);
                 
                 if (result === 'FATAL') {
                     this.stop("Daily API Quota Exceeded (20 RPD Limit).");
                     return;
                 }
                 
-                this.queue.shift();
+                // Remove processed batch from queue
+                this.queue.splice(0, BATCH_SIZE);
                 this.timer = setTimeout(() => this.processQueue(), SAFE_DELAY_MS);
                 
             } else {
-                this.queue.shift();
+                // All items in batch were fresh, skip immediately
+                this.queue.splice(0, BATCH_SIZE);
                 this.timer = setTimeout(() => this.processQueue(), 200);
             }
 
         } catch (e) {
-            console.error(`[SyncManager] Error processing ${country}`, e);
-            this.queue.shift();
+            console.error(`[SyncManager] Error processing batch ${batchNames}`, e);
+            this.queue.splice(0, BATCH_SIZE); // Skip failed batch to prevent loop
             this.timer = setTimeout(() => this.processQueue(), SAFE_DELAY_MS);
         }
     }

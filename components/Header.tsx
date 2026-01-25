@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Radar, Search, Command, X } from 'lucide-react';
+import { Search, Command, X } from 'lucide-react';
 import clsx from 'clsx';
 
 interface HeaderProps {
@@ -8,6 +8,25 @@ interface HeaderProps {
     onCountrySelect: (country: string) => void;
     isPanelOpen: boolean;
 }
+
+// Custom Animated Gyroscope Component
+const GyroscopeIcon = () => {
+  return (
+    <div className="relative w-9 h-9 flex items-center justify-center overflow-hidden">
+      {/* Outer Ring */}
+      <div className="absolute w-full h-full rounded-full border border-indigo-500/30 border-t-indigo-400 animate-[spin_3s_linear_infinite] shadow-[0_0_15px_rgba(99,102,241,0.2)]" />
+      
+      {/* Middle Ring */}
+      <div className="absolute w-[75%] h-[75%] rounded-full border border-indigo-500/40 border-r-indigo-300 animate-[spin_2s_linear_infinite_reverse]" />
+      
+      {/* Inner Ring */}
+      <div className="absolute w-[50%] h-[50%] rounded-full border border-indigo-500/50 border-b-indigo-200 animate-[spin_1s_linear_infinite]" />
+      
+      {/* Core */}
+      <div className="absolute w-2 h-2 bg-indigo-100 rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)] animate-pulse" />
+    </div>
+  );
+};
 
 const Header: React.FC<HeaderProps> = ({ countries, onCountrySelect, isPanelOpen }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,12 +86,8 @@ const Header: React.FC<HeaderProps> = ({ countries, onCountrySelect, isPanelOpen
       <div className="pointer-events-auto flex items-center gap-3">
           <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700 rounded-xl p-4 shadow-sm flex-shrink-0 group hover:shadow-md transition-all">
             <div className="flex items-center gap-3">
-                <div className="relative p-2 bg-indigo-950/50 rounded-lg text-indigo-400 overflow-hidden border border-indigo-500/30 group-hover:border-indigo-400/50 transition-colors">
-                    {/* Enhanced Animation: Pulse Effect */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-full h-full bg-indigo-500/20 rounded-full animate-ping opacity-75"></div>
-                    </div>
-                    <Radar className="w-8 h-8 animate-[spin_3s_linear_infinite] relative z-10" />
+                <div className="relative p-1.5 bg-indigo-950/50 rounded-lg text-indigo-400 overflow-hidden border border-indigo-500/30 group-hover:border-indigo-400/50 transition-colors">
+                    <GyroscopeIcon />
                 </div>
                 <div>
                     <h1 className="text-2xl font-black tracking-tighter text-slate-100">

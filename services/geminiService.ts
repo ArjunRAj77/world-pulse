@@ -102,105 +102,120 @@ export const fetchActiveConflicts = async (): Promise<ConflictZone[]> => {
 };
 
 /**
- * Real API Call using Gemini 3 Flash with Retry Logic
+ * Fetch data for multiple countries in a single request (Batching)
  */
-export const fetchCountrySentiment = async (countryName: string): Promise<CountrySentimentData | null> => {
-  console.debug(`[GeminiService] Analyzing: ${countryName}`);
+export const fetchBatchCountrySentiment = async (countries: string[]): Promise<CountrySentimentData[]> => {
+    const countriesList = countries.join(", ");
+    console.debug(`[GeminiService] Batch Analyzing: ${countriesList}`);
 
-  let attempt = 0;
-  const MAX_RETRIES = 2; // Reduced retries to save time on hard failures
+    let attempt = 0;
+    const MAX_RETRIES = 2;
 
-  while (attempt <= MAX_RETRIES) {
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: `Analyze sentiment, news, and environment for ${countryName}. 
-            1. Provide sentimentScore (-1.0 to 1.0), sentimentLabel (POSITIVE, NEGATIVE, NEUTRAL).
-            2. Provide stateSummary (1 sentence).
-            3. Predict stability for next 7 days: prediction (IMPROVING, DETERIORATING, STABLE) and predictionRationale (1 short sentence).
-            4. Analyze sector sentiment (-1.0 to 1.0): economy, politics, civil.
-            5. Provide the approximate current Air Quality Index (AQI) for the capital city (US AQI standard 0-500).
-            6. Provide 3-5 headlines.`,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        countryName: { type: Type.STRING },
-                        countryCode: { type: Type.STRING, description: "ISO 3166-1 alpha-2 code" },
-                        sentimentScore: { type: Type.NUMBER },
-                        sentimentLabel: { type: Type.STRING },
-                        stateSummary: { type: Type.STRING },
-                        prediction: { type: Type.STRING, enum: ["IMPROVING", "DETERIORATING", "STABLE"] },
-                        predictionRationale: { type: Type.STRING },
-                        sectorBreakdown: {
+    while (attempt <= MAX_RETRIES) {
+        try {
+            const response = await ai.models.generateContent({
+                model: "gemini-3-flash-preview",
+                contents: `Analyze sentiment, news, and environment for the following countries: ${countriesList}. 
+                For EACH country, provide:
+                1. sentimentScore (-1.0 to 1.0), sentimentLabel (POSITIVE, NEGATIVE, NEUTRAL).
+                2. stateSummary (Max 20 words).
+                3. prediction (IMPROVING, DETERIORATING, STABLE) and rationale.
+                4. sectorBreakdown.
+                5. AQI for capital.
+                6. EXACTLY 3 headlines.`,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.ARRAY,
+                        items: {
                             type: Type.OBJECT,
                             properties: {
-                                economy: { type: Type.NUMBER, description: "Economic stability score -1.0 to 1.0" },
-                                politics: { type: Type.NUMBER, description: "Political stability score -1.0 to 1.0" },
-                                civil: { type: Type.NUMBER, description: "Civil society/social score -1.0 to 1.0" }
-                            }
-                        },
-                        aqi: { type: Type.NUMBER, description: "US AQI (0-500) for capital city" },
-                        headlines: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    title: { type: Type.STRING },
-                                    category: { type: Type.STRING },
-                                    snippet: { type: Type.STRING },
-                                    source: { type: Type.STRING },
-                                    url: { type: Type.STRING }
+                                countryName: { type: Type.STRING },
+                                countryCode: { type: Type.STRING, description: "ISO 3166-1 alpha-2 code" },
+                                sentimentScore: { type: Type.NUMBER },
+                                sentimentLabel: { type: Type.STRING },
+                                stateSummary: { type: Type.STRING },
+                                prediction: { type: Type.STRING, enum: ["IMPROVING", "DETERIORATING", "STABLE"] },
+                                predictionRationale: { type: Type.STRING },
+                                sectorBreakdown: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        economy: { type: Type.NUMBER },
+                                        politics: { type: Type.NUMBER },
+                                        civil: { type: Type.NUMBER }
+                                    }
+                                },
+                                aqi: { type: Type.NUMBER },
+                                headlines: {
+                                    type: Type.ARRAY,
+                                    items: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            title: { type: Type.STRING },
+                                            category: { type: Type.STRING },
+                                            snippet: { type: Type.STRING },
+                                            source: { type: Type.STRING },
+                                            url: { type: Type.STRING }
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
-                },
-                tools: [{googleSearch: {}}]
-            }
-        });
+                    },
+                    tools: [{googleSearch: {}}]
+                }
+            });
 
-        const text = response.text;
-        if (!text) {
-            throw new Error("Empty response text");
-        }
-        
-        const data = JSON.parse(text);
-        
-        return {
-            countryName: data.countryName || countryName,
-            countryCode: data.countryCode,
-            sentimentScore: data.sentimentScore,
-            sentimentLabel: data.sentimentLabel as SentimentType,
-            stateSummary: data.stateSummary,
-            prediction: data.prediction as PredictionType,
-            predictionRationale: data.predictionRationale,
-            sectorBreakdown: data.sectorBreakdown,
-            aqi: data.aqi,
-            headlines: data.headlines || [],
-            lastUpdated: Date.now()
-        };
+            const text = response.text;
+            if (!text) throw new Error("Empty response text");
 
-    } catch (error: any) {
-        const isRateLimit = error.status === 429 || (error.message && error.message.includes("429")) || (error.message && error.message.includes("quota"));
-        
-        if (isRateLimit) {
-            if (attempt < MAX_RETRIES) {
-                const delay = 15000 + (attempt * 15000); 
-                console.warn(`[GeminiService] 429/Quota Limit for ${countryName}. Retrying in ${Math.round(delay/1000)}s...`);
-                await wait(delay);
-                attempt++;
-                continue;
-            } else {
-                // CRITICAL: If we exhaust retries on a rate limit, THROW so the scheduler stops the whole queue.
-                throw new Error("QUOTA_EXHAUSTED");
+            const dataArray = JSON.parse(text);
+            
+            if (!Array.isArray(dataArray)) {
+                console.warn("[GeminiService] Batch response was not an array");
+                return [];
             }
+
+            return dataArray.map((data: any) => ({
+                countryName: data.countryName || "Unknown",
+                countryCode: data.countryCode,
+                sentimentScore: data.sentimentScore,
+                sentimentLabel: data.sentimentLabel as SentimentType,
+                stateSummary: data.stateSummary,
+                prediction: data.prediction as PredictionType,
+                predictionRationale: data.predictionRationale,
+                sectorBreakdown: data.sectorBreakdown,
+                aqi: data.aqi,
+                headlines: data.headlines || [],
+                lastUpdated: Date.now()
+            }));
+
+        } catch (error: any) {
+            const isRateLimit = error.status === 429 || (error.message && error.message.includes("429")) || (error.message && error.message.includes("quota"));
+            
+            if (isRateLimit) {
+                if (attempt < MAX_RETRIES) {
+                    const delay = 15000 + (attempt * 15000); 
+                    console.warn(`[GeminiService] Batch 429. Retrying in ${Math.round(delay/1000)}s...`);
+                    await wait(delay);
+                    attempt++;
+                    continue;
+                } else {
+                    throw new Error("QUOTA_EXHAUSTED");
+                }
+            }
+            console.error(`[GeminiService] Batch Error for ${countriesList}:`, error);
+            return []; // Skip this batch
         }
-        
-        console.error(`[GeminiService] Error fetching sentiment for ${countryName}:`, error);
-        return null; // Non-critical error (e.g. parsing), return null to skip this country but continue queue
     }
-  }
-  return null;
+    return [];
+};
+
+/**
+ * Single Country Fetch (Wrapper for legacy calls or specific on-demand checks)
+ */
+export const fetchCountrySentiment = async (countryName: string): Promise<CountrySentimentData | null> => {
+    // We reuse the batch logic for a single item to maintain consistency
+    const result = await fetchBatchCountrySentiment([countryName]);
+    return result.length > 0 ? result[0] : null;
 };

@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
-import { X, PieChart, Activity, Globe, Calendar, CheckCircle2, AlertCircle, HelpCircle, MinusCircle, ArrowUp, ArrowDown, Download, Newspaper, TrendingDown, TrendingUp, Radiation } from 'lucide-react';
+import { X, PieChart, Activity, Globe, Calendar, CheckCircle2, AlertCircle, HelpCircle, MinusCircle, ArrowUp, ArrowDown, Download, Newspaper, TrendingDown, TrendingUp, Radiation, RefreshCw, Loader2 } from 'lucide-react';
 import { getAllCountryData } from '../services/db';
 import { syncManager } from '../services/scheduler';
 import { STATIC_OVERLAYS } from '../services/staticData';
@@ -39,15 +39,36 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
     const [sortField, setSortField] = useState<SortField>('updated');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
     const [filter, setFilter] = useState<FilterType>('ALL');
+    const [isSyncing, setIsSyncing] = useState(false);
+    
     const svgRef = useRef<SVGSVGElement>(null);
 
-    // Load Data
+    // Load Data Helper
+    const loadData = async () => {
+        const data = await getAllCountryData();
+        setAnalyzedData(data);
+    };
+
+    // Initial Load
     useEffect(() => {
-        const load = async () => {
-            const data = await getAllCountryData();
-            setAnalyzedData(data);
-        };
-        load();
+        loadData();
+    }, []);
+
+    // Polling Effect: Auto-refresh data if syncManager is running
+    useEffect(() => {
+        // Check immediate state
+        setIsSyncing(syncManager.isSyncing);
+
+        const interval = setInterval(() => {
+            if (syncManager.isSyncing) {
+                setIsSyncing(true);
+                loadData(); // Reload table data to show progress
+            } else {
+                setIsSyncing(false);
+            }
+        }, 2000); // Poll every 2 seconds
+
+        return () => clearInterval(interval);
     }, []);
 
     // Compute Stats, Extremes, & Regional Data
@@ -160,6 +181,14 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
         }
     };
 
+    const isToday = (timestamp: number) => {
+        const date = new Date(timestamp);
+        const today = new Date();
+        return date.getDate() === today.getDate() &&
+            date.getMonth() === today.getMonth() &&
+            date.getFullYear() === today.getFullYear();
+    };
+
     const handleNuclearRefresh = () => {
         try {
             if (window.confirm("WARNING: Initiate priority satellite re-scan of all Nuclear States? This will consume daily API quota.")) {
@@ -168,11 +197,37 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
                     throw new Error("Nuclear target list unavailable.");
                 }
                 syncManager.start(targets, true); // true = force refresh
-                onClose(); // Close modal to show progress in main app
+                setIsSyncing(true);
             }
         } catch (e: any) {
             console.error("Failed to initiate nuclear scan:", e);
             alert(`Command Failed: ${e.message}`);
+        }
+    };
+
+    const handleBatchRefresh = () => {
+        // Filter: Keep only countries that do NOT have data from Today.
+        const staleCountries = tableData
+            .filter(item => !item.data || !isToday(item.updated))
+            .map(item => item.name);
+
+        const staleCount = staleCountries.length;
+        const totalInView = tableData.length;
+        const skippedCount = totalInView - staleCount;
+        
+        if (staleCount === 0) {
+            alert("All countries in the current view are already up to date for today.");
+            return;
+        }
+
+        const confirmMessage = skippedCount > 0 
+            ? `Initiate batch analysis for ${staleCount} outdated countries?\n\n(Skipping ${skippedCount} countries already updated today)`
+            : `Initiate batch analysis for all ${staleCount} countries in view?`;
+
+        if (window.confirm(`${confirmMessage}\n\nNOTE: This will consume API quota (approx 5 requests per 25 countries).`)) {
+            // Force true because we already manually filtered for staleness
+            syncManager.start(staleCountries, true); 
+            setIsSyncing(true);
         }
     };
 
@@ -240,14 +295,6 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
 
     }, [stats]);
 
-    const isToday = (timestamp: number) => {
-        const date = new Date(timestamp);
-        const today = new Date();
-        return date.getDate() === today.getDate() &&
-            date.getMonth() === today.getMonth() &&
-            date.getFullYear() === today.getFullYear();
-    };
-
     const formatLastUpdated = (timestamp: number) => {
         if (timestamp === 0) return <span className="text-slate-700 text-xs">—</span>;
         if (isToday(timestamp)) {
@@ -305,6 +352,28 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
+                        <button 
+                            onClick={handleBatchRefresh}
+                            disabled={isSyncing}
+                            className={clsx(
+                                "hidden md:flex items-center gap-2 px-3 py-1.5 border rounded-lg text-xs font-bold transition-colors",
+                                isSyncing 
+                                    ? "bg-indigo-900/50 border-indigo-700 text-indigo-300 cursor-wait" 
+                                    : "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300 hover:text-white"
+                            )}
+                        >
+                            {isSyncing ? (
+                                <>
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    SYNCING...
+                                </>
+                            ) : (
+                                <>
+                                    <RefreshCw className="w-3 h-3" />
+                                    REFRESH VIEW
+                                </>
+                            )}
+                        </button>
                         <button 
                             onClick={handleDownload}
                             className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-bold text-slate-300 transition-colors"
