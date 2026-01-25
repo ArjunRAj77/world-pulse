@@ -165,29 +165,29 @@ const WorldMap: React.FC<WorldMapProps> = ({
           .attr('fill', '#020617') // Deepest Slate/Black
           .attr('stroke', 'none');
 
-        // 2. Ocean Glitter Effect
-        // Generate random stars/glitter for the ocean
-        const glitterCount = 150;
-        const glitterData = d3.range(glitterCount).map(() => ({
-            x: d3.randomUniform(-width * 1.5, width * 2.5)(),
-            y: d3.randomUniform(-height * 1.5, height * 2.5)(),
-            size: d3.randomUniform(0.5, 1.8)(),
-            delay: d3.randomUniform(0, 5)(),
-            duration: d3.randomUniform(2, 6)()
+        // 2. Ocean "Wave of Stars" Effect
+        // Generate stars that drift across the map like waves
+        const starCount = 350;
+        const starData = d3.range(starCount).map(() => ({
+            x: d3.randomUniform(-width * 2, width * 3)(), 
+            y: d3.randomUniform(-height * 2, height * 3)(),
+            r: d3.randomUniform(0.3, 1.8)(),
+            delay: d3.randomUniform(0, 15)(), // Spread out start times so they don't pulse together
+            duration: d3.randomUniform(10, 25)() // Slow movement duration
         }));
 
         g.append('g')
-            .attr('class', 'ocean-glitter')
+            .attr('class', 'ocean-stars')
             .selectAll('circle')
-            .data(glitterData)
+            .data(starData)
             .enter()
             .append('circle')
             .attr('cx', d => d.x)
             .attr('cy', d => d.y)
-            .attr('r', d => d.size)
-            .attr('fill', '#38bdf8') // Sky blue
-            .attr('opacity', 0.4)
-            .style('animation', d => `twinkle ${d.duration}s infinite ease-in-out ${d.delay}s`);
+            .attr('r', d => d.r)
+            .attr('fill', '#bae6fd') // Very light blue (Sky 200)
+            .style('opacity', 0)
+            .style('animation', d => `ocean-wave ${d.duration}s infinite linear ${d.delay}s`);
 
         // 3. Graticules
         g.append('path')
@@ -504,9 +504,11 @@ const WorldMap: React.FC<WorldMapProps> = ({
                 0% { transform: scale(0.8); opacity: 0.5; }
                 100% { transform: scale(2); opacity: 0; }
             }
-            @keyframes twinkle {
-                0%, 100% { opacity: 0.2; transform: scale(0.8); }
-                50% { opacity: 0.8; transform: scale(1.2); }
+            @keyframes ocean-wave {
+                0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
+                10% { opacity: 0.8; transform: translate(10px, -2px) scale(1); }
+                90% { opacity: 0.8; transform: translate(90px, -18px) scale(1); }
+                100% { opacity: 0; transform: translate(100px, -20px) scale(0.5); }
             }
             .animate-pulse-sentiment {
                 animation: pulseBrightness 3s ease-in-out infinite;
