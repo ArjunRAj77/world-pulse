@@ -268,7 +268,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
                 />
             )}
             <h2 className="text-2xl font-bold tracking-tight text-slate-100 flex items-center gap-2">
-            {countryName || 'Select Country'}
+            {countryName || 'Global Pulse'}
             </h2>
         </div>
         <button 
@@ -525,11 +525,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose, data, isLoading,
               </div>
             </div>
           </>
-        ) : (
-          <div className="text-center text-slate-500 mt-20">
-            <p>Select a region on the map to analyze its pulse.</p>
-          </div>
-        )}
+        ) : null}
       </div>
       
       {/* Footer */}

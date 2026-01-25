@@ -6,10 +6,10 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import GlobalSummary from './components/GlobalSummary';
 import { validateApiKeyConnection, KEY_COUNTRIES, normalizeCountryName, fetchActiveConflicts } from './services/geminiService';
-import { syncManager, ingestSpecificCountry } from './services/scheduler';
+import { syncManager } from './services/scheduler';
 import { initDB, getCountryData, getAllCountryData, testConnection, getActiveConflicts, saveActiveConflicts } from './services/db';
 import { CountrySentimentData, ConflictZone } from './types';
-import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar, Terminal, Coffee, Map as MapIcon, HeartHandshake, Layers, Shield, ChevronDown, Radiation, Rocket, Swords } from 'lucide-react';
+import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar, Terminal, Coffee, Map as MapIcon, HeartHandshake, Layers, Shield, ChevronDown, Radiation, Rocket, Target } from 'lucide-react';
 import { OverlayType, STATIC_OVERLAYS } from './services/staticData';
 import clsx from 'clsx';
 
@@ -17,7 +17,10 @@ function App() {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [sentimentData, setSentimentData] = useState<CountrySentimentData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Panel state - closed by default
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  
   const [panelError, setPanelError] = useState<string | null>(null);
   const [panelWarning, setPanelWarning] = useState<string | null>(null);
   
@@ -54,7 +57,7 @@ function App() {
   
   // Stores the visual score for the map
   const [sentimentMap, setSentimentMap] = useState<Record<string, number>>({});
-
+  
   // 1. Initialize DB and Load Map Data
   useEffect(() => {
     const initApp = async () => {
@@ -79,18 +82,12 @@ function App() {
         // Load active conflicts from DB (with Auto-Init fallback)
         try {
             let conflicts = await getActiveConflicts();
-            
-            // Check if we have legacy data (generic summaries)
             const hasLegacyData = conflicts.some(c => c.summary === "Active conflict reported.");
-
             if (conflicts.length > 0) {
                 setConflictZones(conflicts);
             }
-            
-            // Auto-populate if empty OR if we detect stale data
             if (conflicts.length === 0 || hasLegacyData) {
                 if (hasLegacyData) console.log("[App] Detected legacy conflict data. Refreshing via AI...");
-                
                 const freshConflicts = await fetchActiveConflicts();
                 if (freshConflicts.length > 0) {
                     await saveActiveConflicts(freshConflicts);
@@ -119,7 +116,6 @@ function App() {
              }
         });
 
-        // DISABLE AUTOMATIC BACKGROUND SYNC.
         console.debug("[App] 20 RPD Limit Mode: Background sync disabled. Waiting for user interaction.");
     };
 
@@ -335,6 +331,7 @@ function App() {
     setIsAutoPilot(false);
     setIsPanelOpen(false);
     setSelectedCountry(null);
+    setSentimentData(null);
   };
 
   const handleRefreshConflicts = async (e: React.MouseEvent) => {
@@ -387,7 +384,7 @@ function App() {
           case 'NUCLEAR': return <Radiation className="w-4 h-4 text-amber-500" />;
           case 'SPACE': return <Rocket className="w-4 h-4 text-sky-400" />;
           case 'NATO': return <Shield className="w-4 h-4 text-indigo-400" />;
-          case 'CONFLICT': return <Swords className="w-4 h-4 text-red-500" />;
+          case 'CONFLICT': return <Target className="w-4 h-4 text-red-500" />;
           default: return <X className="w-4 h-4 text-slate-500" />;
       }
   };
@@ -398,7 +395,7 @@ function App() {
     : 100;
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-slate-950 text-slate-100 selection:bg-indigo-500/30">
+    <div className="relative w-screen h-screen overflow-hidden bg-pulse-dark text-slate-100 selection:bg-indigo-500/30">
       
       {/* 1. SETUP REQUIRED SCREEN (Placeholder Key) */}
       {configStatus === 'PLACEHOLDER_KEY' && (
@@ -680,7 +677,7 @@ function App() {
                         </div>
                         <div>
                             <h2 className="text-2xl font-bold text-white">About Geo-Pulse</h2>
-                            <p className="text-slate-400 text-sm font-mono">v1.0.0 • Public Beta</p>
+                            <p className="text-slate-400 text-sm font-mono">v1.1.0 • Holographic Edition</p>
                         </div>
                     </div>
 
@@ -717,6 +714,9 @@ function App() {
         </div>
       )}
 
+      {/* --- COMPONENTS --- */}
+      
+      {/* 1. Header */}
       <Header 
         countries={countryList} 
         onCountrySelect={handleCountrySelect} 
