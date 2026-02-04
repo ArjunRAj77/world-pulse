@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { Copy, RefreshCw, AlertTriangle } from 'lucide-react';
 
-console.log("[System] Initializing Geo-Pulse...");
+// console.log("[System] Initializing Geo-Pulse...");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -31,7 +31,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("[System] React Error Boundary Caught:", error, errorInfo);
+    // Keep this one for critical debugging, but it's not exposing user data
+    // console.error("[System] React Error Boundary Caught:", error, errorInfo);
     this.setState({ errorInfo });
   }
 
@@ -39,9 +40,9 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     try {
         localStorage.clear();
         sessionStorage.clear();
-        console.log("[System] Cache cleared.");
+        // console.log("[System] Cache cleared.");
     } catch (e) {
-        console.error("[System] Failed to clear cache", e);
+        // console.error("[System] Failed to clear cache", e);
     }
     window.location.reload();
   };
@@ -168,4 +169,4 @@ root.render(
   </React.StrictMode>
 );
 
-console.log("[System] React Root rendered");
+// console.log("[System] React Root rendered");

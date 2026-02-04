@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { Home, Sparkles } from 'lucide-react';
@@ -305,25 +304,47 @@ const WorldMap: React.FC<WorldMapProps> = ({
                 return `translate(${centroid[0]}, ${centroid[1]}) scale(${scale})`;
             });
 
-        // Append Path to Group
-        groups.append('path')
-            .attr('d', config.mapPath)
-            .attr('fill', config.color)
-            .attr('stroke', '#0f172a') // Dark stroke for contrast
-            .attr('stroke-width', 1)
-            // Center the 24x24 icon. Translate -12, -12
-            .attr('transform', 'translate(-12, -12)') 
-            .attr('opacity', 0)
-            .transition()
-            .duration(500)
-            .attr('opacity', 1);
-
-        // Add Pulse effect behind
-        groups.insert('circle', 'path')
+        // Add Pulse effect behind (Base pulse)
+        groups.append('circle')
             .attr('r', 8)
             .attr('fill', config.color)
             .attr('opacity', 0.4)
             .attr('class', 'animate-ping-slow');
+
+        // Create a wrapper group for the icon path to handle centering and animation origins
+        const iconWrapper = groups.append('g')
+            .attr('transform', 'translate(-12, -12)');
+
+        // Append Path to Wrapper
+        const path = iconWrapper.append('path')
+            .attr('d', config.mapPath)
+            .attr('fill', config.color)
+            .attr('stroke', '#0f172a') // Dark stroke for contrast
+            .attr('stroke-width', 1)
+            .attr('opacity', 0);
+        
+        // Apply specific animations based on overlay type
+        // Note: transform-origin is critical for rotation.
+        // The path is drawn in 0,0 to 24,24 space. Center is 12,12.
+        path.style('transform-origin', '12px 12px');
+
+        if (activeOverlay === 'NUCLEAR') {
+            path.attr('class', 'icon-spin');
+        } else if (activeOverlay === 'SPACE') {
+            path.attr('class', 'icon-float');
+        } else if (activeOverlay === 'CONFLICT') {
+            path.attr('class', 'icon-pulse-fast');
+        } else if (activeOverlay === 'OPEC') {
+            path.attr('class', 'icon-flicker');
+        } else if (activeOverlay === 'AI_HUBS') {
+            path.attr('class', 'icon-pulse');
+        } else if (activeOverlay === 'NATO') {
+             path.attr('class', 'icon-pulse');
+        }
+
+        path.transition()
+            .duration(500)
+            .attr('opacity', 1);
 
     } catch (e) {
         console.error("Overlay Update Error:", e);
@@ -371,7 +392,8 @@ const WorldMap: React.FC<WorldMapProps> = ({
 
     try {
         // We select all existing country paths and re-apply event listeners
-        gRef.current.selectAll<SVGPathElement, any>('.country-block')
+        // Fixed: Removed generic type arguments from selectAll to prevent TS error about untyped function calls
+        gRef.current.selectAll('.country-block')
           .on('mouseover', function(event, d: any) {
             if (!d || !d.properties) return;
             const sel = d3.select(this);
@@ -510,6 +532,27 @@ const WorldMap: React.FC<WorldMapProps> = ({
                 90% { opacity: 0.8; transform: translate(90px, -18px) scale(1); }
                 100% { opacity: 0; transform: translate(100px, -20px) scale(0.5); }
             }
+            @keyframes spin { 
+                100% { transform: rotate(360deg); } 
+            }
+            @keyframes float { 
+                0%, 100% { transform: translateY(0); } 
+                50% { transform: translateY(-3px); } 
+            }
+            @keyframes flicker {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.5; }
+            }
+            @keyframes pulse-scale {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.15); }
+            }
+            .icon-spin { animation: spin 4s linear infinite; }
+            .icon-float { animation: float 3s ease-in-out infinite; }
+            .icon-flicker { animation: flicker 2s infinite; }
+            .icon-pulse { animation: pulse-scale 2s ease-in-out infinite; }
+            .icon-pulse-fast { animation: pulse-scale 1s ease-in-out infinite; }
+            
             .animate-pulse-sentiment {
                 animation: pulseBrightness 3s ease-in-out infinite;
             }

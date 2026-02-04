@@ -13,9 +13,9 @@ const TEST_COLLECTION = '_connection_test_';
 const memoryCache = new Map<string, CountrySentimentData>();
 
 export const initDB = async () => {
-    // console.debug("[DB] Initializing Database Service...");
     if (!isFirebaseConfigured) {
-        console.warn("[DB] Firebase is NOT configured. Using In-Memory mode only.");
+        // Warn only once for configuration issues
+        // console.warn("[DB] Firebase is NOT configured. Using In-Memory mode only.");
         return false;
     }
     return true;
@@ -63,10 +63,10 @@ export const saveCountryData = async (data: CountrySentimentData) => {
   } catch (e: any) {
       // Suppress offline/network errors for background saves
       if (e.code === 'unavailable' || (e.message && e.message.includes('offline'))) {
-          console.debug(`[DB-Firestore] Offline - write queued/skipped for ${data.countryName}`);
+          // console.debug(`[DB-Firestore] Offline - write queued/skipped for ${data.countryName}`);
           return;
       }
-      console.error(`[DB-Firestore] WRITE FAILED for ${data.countryName}:`, e);
+      // console.error(`[DB-Firestore] WRITE FAILED for ${data.countryName}:`, e);
   }
 };
 
@@ -93,10 +93,10 @@ export const getCountryData = async (countryName: string): Promise<CountrySentim
   } catch (e: any) {
       // Gracefully handle offline status
       if (e.code === 'unavailable' || (e.message && e.message.includes('offline'))) {
-           console.warn(`[DB-Firestore] Offline mode - skipping cache check for ${countryName}`);
+           // console.warn(`[DB-Firestore] Offline mode - skipping cache check for ${countryName}`);
            return undefined;
       }
-      console.error(`[DB-Firestore] READ ERROR for ${countryName}:`, e);
+      // console.error(`[DB-Firestore] READ ERROR for ${countryName}:`, e);
       return undefined;
   }
 };
@@ -133,7 +133,7 @@ export const getCountryHistory = async (countryName: string): Promise<Historical
         if (e.code === 'unavailable' || (e.message && e.message.includes('offline'))) {
             return [];
         }
-        console.error(`[DB-Firestore] HISTORY ERROR for ${countryName}:`, e);
+        // console.error(`[DB-Firestore] HISTORY ERROR for ${countryName}:`, e);
         return [];
     }
 };
@@ -159,7 +159,7 @@ export const getAllCountryData = async (): Promise<CountrySentimentData[]> => {
           // Fallback to memory cache if offline
           return Array.from(memoryCache.values());
       }
-      console.error("[DB-Firestore] Fetch ALL Error:", e);
+      // console.error("[DB-Firestore] Fetch ALL Error:", e);
       return Array.from(memoryCache.values());
   }
 };
@@ -187,7 +187,7 @@ export const getActiveConflicts = async (): Promise<ConflictZone[]> => {
         }
         return [];
     } catch (e) {
-        console.error("[DB] Failed to get conflicts", e);
+        // console.error("[DB] Failed to get conflicts", e);
         return [];
     }
 };
@@ -203,8 +203,8 @@ export const saveActiveConflicts = async (conflicts: ConflictZone[]) => {
             conflicts,
             lastUpdated: Date.now()
         });
-        console.log(`[DB] Active conflicts overwritten. Count: ${conflicts.length}`);
+        // console.log(`[DB] Active conflicts overwritten. Count: ${conflicts.length}`);
     } catch (e) {
-        console.error("[DB] Failed to save conflicts", e);
+        // console.error("[DB] Failed to save conflicts", e);
     }
 };

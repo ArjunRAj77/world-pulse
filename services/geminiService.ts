@@ -5,6 +5,7 @@ import { CountrySentimentData, SentimentType, PredictionType, ConflictZone } fro
 // Initialize Gemini Client
 // @google/genai Coding Guidelines: apiKey must be from process.env.API_KEY
 // Assuming process.env.API_KEY is available and valid.
+// Note: Communication is encrypted via HTTPS by the SDK.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const KEY_COUNTRIES = [
@@ -38,7 +39,8 @@ export const validateApiKeyConnection = async (): Promise<{ success: boolean; me
         // We return success based on static analysis; actual errors will be caught in data fetching.
         return { success: true, message: "Connected" };
     } catch (error: any) {
-        console.error("[GeminiService] Validation Error:", error);
+        // Suppress detailed error logging in production for security
+        // console.error("[GeminiService] Validation Error:", error);
         return { success: false, message: error.message || "Connection Failed" };
     }
 };
@@ -96,7 +98,7 @@ export const fetchActiveConflicts = async (): Promise<ConflictZone[]> => {
         }));
 
     } catch (e) {
-        console.error("[GeminiService] Failed to fetch conflicts:", e);
+        // console.error("[GeminiService] Failed to fetch conflicts:", e);
         return [];
     }
 };
@@ -106,7 +108,7 @@ export const fetchActiveConflicts = async (): Promise<ConflictZone[]> => {
  */
 export const fetchBatchCountrySentiment = async (countries: string[]): Promise<CountrySentimentData[]> => {
     const countriesList = countries.join(", ");
-    console.debug(`[GeminiService] Batch Analyzing: ${countriesList}`);
+    // console.debug(`[GeminiService] Batch Analyzing: ${countriesList}`);
 
     let attempt = 0;
     const MAX_RETRIES = 2;
@@ -172,7 +174,7 @@ export const fetchBatchCountrySentiment = async (countries: string[]): Promise<C
             const dataArray = JSON.parse(text);
             
             if (!Array.isArray(dataArray)) {
-                console.warn("[GeminiService] Batch response was not an array");
+                // console.warn("[GeminiService] Batch response was not an array");
                 return [];
             }
 
@@ -196,7 +198,7 @@ export const fetchBatchCountrySentiment = async (countries: string[]): Promise<C
             if (isRateLimit) {
                 if (attempt < MAX_RETRIES) {
                     const delay = 15000 + (attempt * 15000); 
-                    console.warn(`[GeminiService] Batch 429. Retrying in ${Math.round(delay/1000)}s...`);
+                    // console.warn(`[GeminiService] Batch 429. Retrying in ${Math.round(delay/1000)}s...`);
                     await wait(delay);
                     attempt++;
                     continue;
@@ -204,7 +206,7 @@ export const fetchBatchCountrySentiment = async (countries: string[]): Promise<C
                     throw new Error("QUOTA_EXHAUSTED");
                 }
             }
-            console.error(`[GeminiService] Batch Error for ${countriesList}:`, error);
+            // console.error(`[GeminiService] Batch Error for ${countriesList}:`, error);
             return []; // Skip this batch
         }
     }

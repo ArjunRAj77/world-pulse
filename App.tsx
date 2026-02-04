@@ -65,7 +65,7 @@ function App() {
         await initDB();
 
         // TEST CONNECTION
-        console.debug("[App] Running DB Connectivity Test...");
+        // console.debug("[App] Running DB Connectivity Test...");
         const dbTestResult = await testConnection();
         if (!dbTestResult.success && dbTestResult.error === 'permission-denied') {
             setConfigStatus('DB_PERMISSION_DENIED');
@@ -87,7 +87,7 @@ function App() {
                 setConflictZones(conflicts);
             }
             if (conflicts.length === 0 || hasLegacyData) {
-                if (hasLegacyData) console.log("[App] Detected legacy conflict data. Refreshing via AI...");
+                // if (hasLegacyData) console.log("[App] Detected legacy conflict data. Refreshing via AI...");
                 const freshConflicts = await fetchActiveConflicts();
                 if (freshConflicts.length > 0) {
                     await saveActiveConflicts(freshConflicts);
@@ -95,7 +95,7 @@ function App() {
                 }
             }
         } catch (e) {
-            console.error("[App] Failed to load conflict data:", e);
+            // console.error("[App] Failed to load conflict data:", e);
         }
 
         // --- SCHEDULER LOGIC ---
@@ -103,7 +103,7 @@ function App() {
              if (state.status === 'ERROR') {
                  setSyncStatus({ active: false });
                  setQuotaExceeded(true);
-                 console.warn(`[App] Sync Scheduler Stopped: ${state.errorMessage}`);
+                 // console.warn(`[App] Sync Scheduler Stopped: ${state.errorMessage}`);
              } else if (state.status === 'COMPLETE') {
                  setSyncStatus({ active: false });
                  getAllCountryData().then(data => {
@@ -116,7 +116,7 @@ function App() {
              }
         });
 
-        console.debug("[App] 20 RPD Limit Mode: Background sync disabled. Waiting for user interaction.");
+        // console.debug("[App] 20 RPD Limit Mode: Background sync disabled. Waiting for user interaction.");
     };
 
     initApp();
@@ -163,7 +163,7 @@ function App() {
             setGeoData(data);
         })
         .catch(err => {
-            console.error("Failed to load map data", err);
+            // console.error("Failed to load map data", err);
             setMapError("Map data unavailable (Network/CORS).");
             setGeoData({ type: "FeatureCollection", features: [] });
         });
@@ -232,7 +232,7 @@ function App() {
 
     if (isStale) {
         if (quotaExceeded) {
-             console.warn("[App] Quota exceeded, cannot fetch new data.");
+             // console.warn("[App] Quota exceeded, cannot fetch new data.");
              if (data) {
                  setSentimentData(data);
                  setPanelWarning("Daily API Limit Reached. Displaying last available report.");
@@ -378,17 +378,30 @@ function App() {
     }
   };
 
-  // Helper to map active overlay to icon
+  // Helper to map active overlay to animated icon
   const getOverlayIcon = (type: OverlayType) => {
       switch(type) {
-          case 'NUCLEAR': return <Radiation className="w-4 h-4 text-amber-500" />;
-          case 'SPACE': return <Rocket className="w-4 h-4 text-sky-400" />;
-          case 'NATO': return <Shield className="w-4 h-4 text-indigo-400" />;
-          case 'CONFLICT': return <Target className="w-4 h-4 text-red-500" />;
-          case 'BRICS': return <Link className="w-4 h-4 text-fuchsia-400" />;
-          case 'AI_HUBS': return <Cpu className="w-4 h-4 text-cyan-400" />;
-          case 'OPEC': return <Flame className="w-4 h-4 text-yellow-400" />;
-          default: return <X className="w-4 h-4 text-slate-500" />;
+          case 'NUCLEAR': 
+            return <Radiation className="w-4 h-4 text-amber-500 animate-[spin_4s_linear_infinite]" />;
+          case 'SPACE': 
+            return <Rocket className="w-4 h-4 text-sky-400 animate-pulse" />;
+          case 'NATO': 
+            return <Shield className="w-4 h-4 text-indigo-400 animate-pulse" />;
+          case 'CONFLICT': 
+            return (
+                <div className="relative flex items-center justify-center">
+                    <Target className="w-4 h-4 text-red-500 relative z-10" />
+                    <span className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-75"></span>
+                </div>
+            );
+          case 'BRICS': 
+            return <Link className="w-4 h-4 text-fuchsia-400 animate-pulse" />;
+          case 'AI_HUBS': 
+            return <Cpu className="w-4 h-4 text-cyan-400 animate-[pulse_1.5s_ease-in-out_infinite]" />;
+          case 'OPEC': 
+            return <Flame className="w-4 h-4 text-yellow-400 animate-[pulse_2s_ease-in-out_infinite]" />;
+          default: 
+            return <X className="w-4 h-4 text-slate-500" />;
       }
   };
 

@@ -24,10 +24,12 @@ export const ingestBatch = async (countries: string[]): Promise<'SUCCESS' | 'SKI
         return 'SKIP';
     } catch (error: any) {
         if (error.message === "QUOTA_EXHAUSTED") {
-            console.error(`[Scheduler] FATAL: Daily Quota or Rate Limit hit hard. Stopping queue.`);
+            // Log fatal error as it stops functionality, but don't leak data
+            console.error(`[Scheduler] FATAL: Quota/Rate Limit hit. Stopping.`);
             return 'FATAL';
         }
-        console.error(`[Scheduler] Failed Batch: ${countries.join(', ')}`, error);
+        // Suppress batch errors to avoid log spam
+        // console.error(`[Scheduler] Failed Batch: ${countries.join(', ')}`, error);
         return 'SKIP';
     }
 };
@@ -72,7 +74,7 @@ class SyncManager {
         const newItems = countries.filter(c => !this.queue.includes(c));
         this.queue = [...this.queue, ...newItems];
         
-        console.debug(`[SyncManager] Started. Queue size: ${this.queue.length} (Force: ${force})`);
+        // console.debug(`[SyncManager] Started. Queue size: ${this.queue.length} (Force: ${force})`);
 
         if (!this.isRunning) {
             this.processQueue();
@@ -180,7 +182,7 @@ class SyncManager {
             }
 
         } catch (e) {
-            console.error(`[SyncManager] Error processing batch ${batchNames}`, e);
+            // console.error(`[SyncManager] Error processing batch ${batchNames}`, e);
             this.queue.splice(0, BATCH_SIZE); // Skip failed batch to prevent loop
             this.timer = setTimeout(() => this.processQueue(), SAFE_DELAY_MS);
         }
