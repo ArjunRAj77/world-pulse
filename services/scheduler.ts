@@ -190,3 +190,57 @@ class SyncManager {
 }
 
 export const syncManager = new SyncManager();
+
+/**
+ * Daily Scheduler
+ * Triggers the SyncManager at a specific time of day (e.g. 08:00 AM)
+ */
+export const initDailyScheduler = (targetHour: number, getCountriesCallback: () => string[]) => {
+    // Check local storage to see if we already ran for today
+    const STORAGE_KEY = 'geopulse_last_daily_sync';
+    const lastRun = localStorage.getItem(STORAGE_KEY);
+    const todayStr = new Date().toDateString();
+
+    const runJob = () => {
+        const countries = getCountriesCallback();
+        if (countries.length > 0) {
+            // console.debug(`[DailyScheduler] Triggering scheduled update for ${countries.length} countries.`);
+            syncManager.start(countries, false); // false = respect freshness (don't force if already updated manually)
+            localStorage.setItem(STORAGE_KEY, todayStr);
+        }
+    };
+
+    const scheduleNext = () => {
+        const now = new Date();
+        const nextRun = new Date();
+        
+        // Set target time
+        nextRun.setHours(targetHour, 0, 0, 0);
+
+        // If target time has passed today, schedule for tomorrow
+        if (now.getTime() >= nextRun.getTime()) {
+            nextRun.setDate(nextRun.getDate() + 1);
+        }
+
+        const delay = nextRun.getTime() - now.getTime();
+        // console.debug(`[DailyScheduler] Next update scheduled in ${Math.round(delay / 1000 / 60)} minutes.`);
+
+        setTimeout(() => {
+            runJob();
+            scheduleNext(); // Recurse for the next day
+        }, delay);
+    };
+
+    // Initial check on boot: If we haven't run today and it's past target time, run now.
+    // Otherwise, just schedule the future job.
+    const now = new Date();
+    const targetToday = new Date();
+    targetToday.setHours(targetHour, 0, 0, 0);
+
+    if (lastRun !== todayStr && now.getTime() >= targetToday.getTime()) {
+        runJob();
+    }
+    
+    // Always start the timer for the next occurrence
+    scheduleNext();
+};

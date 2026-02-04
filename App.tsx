@@ -6,7 +6,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import GlobalSummary from './components/GlobalSummary';
 import { validateApiKeyConnection, KEY_COUNTRIES, normalizeCountryName, fetchActiveConflicts } from './services/geminiService';
-import { syncManager } from './services/scheduler';
+import { syncManager, initDailyScheduler } from './services/scheduler';
 import { initDB, getCountryData, getAllCountryData, testConnection, getActiveConflicts, saveActiveConflicts } from './services/db';
 import { CountrySentimentData, ConflictZone } from './types';
 import { AlertTriangle, WifiOff, Key, RefreshCw, ShieldAlert, Loader2, Globe, Ban, Info, X, Radar, Terminal, Coffee, Map as MapIcon, HeartHandshake, Layers, Shield, ChevronDown, Radiation, Rocket, Target, Link, Cpu, Flame } from 'lucide-react';
@@ -122,7 +122,7 @@ function App() {
     initApp();
   }, []);
 
-  // 2. Load GeoJSON
+  // 2. Load GeoJSON & Initialize Daily Scheduler
   useEffect(() => {
     const CACHE_KEY = 'worldpulse_geojson_v1';
     const cachedData = localStorage.getItem(CACHE_KEY);
@@ -134,8 +134,14 @@ function App() {
             data.features.forEach((f: any) => {
                 f.properties.name = normalizeCountryName(f.properties.name);
             });
+            setGeoData(data);
+            
+            // --- INITIALIZE DAILY SCHEDULER ---
+            // Run at 08:00 Local Time
+            initDailyScheduler(8, () => {
+                return data.features.map((f: any) => f.properties.name);
+            });
         }
-        setGeoData(data);
       } catch (e) {
         localStorage.removeItem(CACHE_KEY);
       }
@@ -155,6 +161,12 @@ function App() {
             if (data && data.features) {
                 data.features.forEach((f: any) => {
                     f.properties.name = normalizeCountryName(f.properties.name);
+                });
+                
+                // --- INITIALIZE DAILY SCHEDULER ---
+                // Run at 08:00 Local Time
+                initDailyScheduler(8, () => {
+                    return data.features.map((f: any) => f.properties.name);
                 });
             }
             try {
@@ -406,8 +418,11 @@ function App() {
   };
 
   const totalCountries = KEY_COUNTRIES.length;
+  // Fallback if we don't know total countries yet
+  const totalTracked = geoData?.features?.length || totalCountries;
+  
   const progressPercent = syncStatus.remaining 
-    ? Math.round(((totalCountries - syncStatus.remaining) / totalCountries) * 100) 
+    ? Math.round(((totalTracked - syncStatus.remaining) / totalTracked) * 100) 
     : 100;
 
   return (
@@ -509,8 +524,8 @@ function App() {
         </div>
       )}
       
-      {/* 5. SYNC PROGRESS INDICATOR */}
-      {syncStatus.active && (
+      {/* 5. SYNC PROGRESS INDICATOR (Bottom Right) - Only show if GlobalSummary is closed */}
+      {syncStatus.active && !showGlobalSummary && (
          <div className="absolute bottom-16 right-6 z-40 bg-slate-900/95 border border-indigo-500/30 p-4 rounded-xl shadow-2xl backdrop-blur-md w-72 animate-slide-up">
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-indigo-400">
@@ -668,6 +683,7 @@ function App() {
           <GlobalSummary 
             onClose={() => setShowGlobalSummary(false)}
             geoData={geoData}
+            syncStatus={syncStatus} // Pass progress state
           />
       )}
 

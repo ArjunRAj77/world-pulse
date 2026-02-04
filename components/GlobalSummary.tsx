@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
-import { X, PieChart, Activity, Globe, Calendar, CheckCircle2, AlertCircle, HelpCircle, MinusCircle, ArrowUp, ArrowDown, Download, Newspaper, TrendingDown, TrendingUp, Radiation, RefreshCw, Loader2 } from 'lucide-react';
+import { X, PieChart, Activity, Globe, Calendar, CheckCircle2, AlertCircle, HelpCircle, MinusCircle, ArrowUp, ArrowDown, Download, Newspaper, TrendingDown, TrendingUp, Radiation, RefreshCw, Loader2, Zap } from 'lucide-react';
 import { getAllCountryData } from '../services/db';
 import { syncManager } from '../services/scheduler';
 import { STATIC_OVERLAYS } from '../services/staticData';
@@ -11,6 +11,8 @@ import clsx from 'clsx';
 interface GlobalSummaryProps {
     onClose: () => void;
     geoData: any;
+    // New Prop for progress
+    syncStatus?: { active: boolean; current?: string; remaining?: number };
 }
 
 type SortField = 'name' | 'score' | 'updated';
@@ -34,7 +36,7 @@ const getRegion = (countryName: string): string => {
     return "Other";
 };
 
-const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
+const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData, syncStatus }) => {
     const [analyzedData, setAnalyzedData] = useState<CountrySentimentData[]>([]);
     const [sortField, setSortField] = useState<SortField>('updated');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -231,6 +233,16 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
         }
     };
 
+    const handleForceUpdateAll = () => {
+        const allCountries = stats.allNames;
+        if (allCountries.length === 0) return;
+
+        if (window.confirm(`⚠️ HIGH TRAFFIC ALERT ⚠️\n\nYou are about to trigger a full database refresh for ${allCountries.length} countries.\n\nThis requires a paid/upgraded API quota to run efficiently.\n\nAre you sure you want to proceed?`)) {
+            syncManager.start(allCountries, true);
+            setIsSyncing(true);
+        }
+    };
+
     // Draw Pie Chart
     useEffect(() => {
         if (!svgRef.current || stats.total === 0) return;
@@ -325,66 +337,98 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
         link.click();
         document.body.removeChild(link);
     };
+    
+    // Progress calculation for internal bar
+    const progressPercent = syncStatus && syncStatus.remaining !== undefined 
+        ? Math.round(((stats.total - syncStatus.remaining) / stats.total) * 100)
+        : 100;
 
     return (
         <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 md:p-8 animate-[fadeIn_0.3s_ease-out]">
             <div className="bg-slate-900 w-full max-w-6xl h-[90vh] rounded-2xl border border-slate-700 shadow-2xl flex flex-col overflow-hidden relative">
                 
                 {/* Header */}
-                <div className="p-5 border-b border-slate-700 flex justify-between items-center bg-slate-950/50">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400">
-                            <Activity className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-bold text-white tracking-tight">Global Intelligence Summary</h2>
-                            <div className="text-slate-400 text-xs font-mono flex items-center gap-2">
-                                CONFIDENTIAL_REPORT_V1 // {new Date().toLocaleDateString()}
-                                {/* Hidden Nuclear Refresh Button */}
-                                <button 
-                                    onClick={handleNuclearRefresh}
-                                    className="opacity-10 hover:opacity-100 transition-all p-1 hover:text-amber-500 rounded"
-                                    title="Authorize Nuclear State Re-Scan"
-                                >
-                                    <Radiation className="w-3 h-3" />
-                                </button>
+                <div className="p-5 border-b border-slate-700 flex flex-col gap-2 bg-slate-950/50">
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400">
+                                <Activity className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-bold text-white tracking-tight">Global Intelligence Summary</h2>
+                                <div className="text-slate-400 text-xs font-mono flex items-center gap-2">
+                                    CONFIDENTIAL_REPORT_V1 // {new Date().toLocaleDateString()}
+                                    {/* Hidden Nuclear Refresh Button */}
+                                    <button 
+                                        onClick={handleNuclearRefresh}
+                                        className="opacity-10 hover:opacity-100 transition-all p-1 hover:text-amber-500 rounded"
+                                        title="Authorize Nuclear State Re-Scan"
+                                    >
+                                        <Radiation className="w-3 h-3" />
+                                    </button>
+                                    {/* Hidden Global Force Refresh Button */}
+                                    <button 
+                                        onClick={handleForceUpdateAll}
+                                        className="opacity-10 hover:opacity-100 transition-all p-1 hover:text-rose-500 rounded ml-1"
+                                        title="Protocol 66: Force Global Database Refresh (High API Usage)"
+                                    >
+                                        <Zap className="w-3 h-3" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
+                        <div className="flex items-center gap-3">
+                            <button 
+                                onClick={handleBatchRefresh}
+                                disabled={isSyncing}
+                                className={clsx(
+                                    "hidden md:flex items-center gap-2 px-3 py-1.5 border rounded-lg text-xs font-bold transition-colors",
+                                    isSyncing 
+                                        ? "bg-indigo-900/50 border-indigo-700 text-indigo-300 cursor-wait" 
+                                        : "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300 hover:text-white"
+                                )}
+                            >
+                                {isSyncing ? (
+                                    <>
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        SYNCING...
+                                    </>
+                                ) : (
+                                    <>
+                                        <RefreshCw className="w-3 h-3" />
+                                        REFRESH VIEW
+                                    </>
+                                )}
+                            </button>
+                            <button 
+                                onClick={handleDownload}
+                                className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-bold text-slate-300 transition-colors"
+                            >
+                                <Download className="w-3 h-3" />
+                                EXPORT CSV
+                            </button>
+                            <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <button 
-                            onClick={handleBatchRefresh}
-                            disabled={isSyncing}
-                            className={clsx(
-                                "hidden md:flex items-center gap-2 px-3 py-1.5 border rounded-lg text-xs font-bold transition-colors",
-                                isSyncing 
-                                    ? "bg-indigo-900/50 border-indigo-700 text-indigo-300 cursor-wait" 
-                                    : "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300 hover:text-white"
-                            )}
-                        >
-                            {isSyncing ? (
-                                <>
+                    
+                    {/* VISUAL PROGRESS BAR */}
+                    {isSyncing && syncStatus && syncStatus.active && (
+                        <div className="w-full bg-slate-800 h-6 rounded-lg overflow-hidden border border-slate-700 relative mt-2 animate-slide-down">
+                            <div 
+                                className="h-full bg-indigo-600 shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all duration-300 ease-out"
+                                style={{ width: `${progressPercent}%` }}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-between px-3 text-[10px] font-bold uppercase tracking-wider text-white">
+                                <div className="flex items-center gap-2">
                                     <Loader2 className="w-3 h-3 animate-spin" />
-                                    SYNCING...
-                                </>
-                            ) : (
-                                <>
-                                    <RefreshCw className="w-3 h-3" />
-                                    REFRESH VIEW
-                                </>
-                            )}
-                        </button>
-                        <button 
-                            onClick={handleDownload}
-                            className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-bold text-slate-300 transition-colors"
-                        >
-                            <Download className="w-3 h-3" />
-                            EXPORT CSV
-                        </button>
-                        <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors">
-                            <X className="w-6 h-6" />
-                        </button>
-                    </div>
+                                    <span>Processing: {syncStatus.current}</span>
+                                </div>
+                                <span>{progressPercent}% Complete ({syncStatus.remaining} Remaining)</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
@@ -637,6 +681,13 @@ const GlobalSummary: React.FC<GlobalSummaryProps> = ({ onClose, geoData }) => {
                     .no-scrollbar {
                         -ms-overflow-style: none;
                         scrollbar-width: none;
+                    }
+                    @keyframes slide-down {
+                        from { opacity: 0; transform: translateY(-10px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                    .animate-slide-down {
+                        animation: slide-down 0.3s ease-out forwards;
                     }
                 `}</style>
             </div>
