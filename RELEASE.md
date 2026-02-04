@@ -1,6 +1,28 @@
 
 # Release Notes
 
+## v1.6.0 - "Stellar Flow"
+**Release Date:** January 28, 2026
+
+This update focuses on visual immersion and security hardening. We've replaced static elements with fluid, organic animations and tightened up data leakage vectors.
+
+### 🌟 New Features
+
+#### Visual Immersion
+- **Bioluminescent Ocean:** Replaced the static starfield with a dynamic "wave of stars" particle system. Stars now drift, scale, and fade to simulate ocean currents and wind patterns, making the map feel "alive" even when idle.
+- **Context-Aware Layer Animations:** Map overlay icons now have specific behaviors based on their type:
+  - ☢️ **Nuclear:** Slow, ominous rotation.
+  - 🚀 **Space Ports:** Gentle vertical floating/hovering.
+  - 🎯 **Conflict Zones:** Rapid, urgent pulsing.
+  - ⛽ **OPEC:** Flickering energy effect.
+  - 🤖 **AI Hubs:** "Breathing" scale effect.
+
+#### Security Hardening
+- **Console Sanitization:** Removed debug logging from production flows to prevent accidental exposure of API keys, database structures, or internal state logic in the browser console.
+- **Error Obfuscation:** Critical failures now fail gracefully without dumping full stack traces to the UI unless explicitly requested by the user for debugging.
+
+---
+
 ## v1.5.0 - "Kinetic Horizon"
 **Release Date:** January 25, 2026
 
