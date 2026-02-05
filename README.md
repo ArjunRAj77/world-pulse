@@ -7,6 +7,8 @@ Yo! Welcome to **Geo-Pulse**.
 
 Let's be real—keeping up with global news is exhausting. **Geo-Pulse** is a real-time dashboard that uses AI to read the internet for you and tell you how the world is feeling. It turns complex geopolitics into a simple, color-coded map.
 
+<img width="911" height="660" alt="Screenshot 2026-01-24 at 15 55 01" src="https://github.com/user-attachments/assets/c6880083-7034-49a1-83c4-134284026271" />
+
 ## 🧐 What is this?
 
 Think of it as a **Mood Ring for the Planet**. 
