@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { Home, Sparkles } from 'lucide-react';
@@ -31,6 +32,13 @@ const WorldMap: React.FC<WorldMapProps> = ({
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const projectionRef = useRef<d3.GeoProjection>(d3.geoMercator()); 
+
+  // Refs for Event Handlers (Fixes stale closures in D3 without constant re-binding)
+  const onCountrySelectRef = useRef(onCountrySelect);
+  const tooltipDataRef = useRef({ activeOverlay, conflictZones });
+
+  useEffect(() => { onCountrySelectRef.current = onCountrySelect; }, [onCountrySelect]);
+  useEffect(() => { tooltipDataRef.current = { activeOverlay, conflictZones }; }, [activeOverlay, conflictZones]);
 
   // Use a ref to track dimensions to prevent unnecessary re-renders loop in ResizeObserver
   const dimRef = useRef({ width: 0, height: 0 });
@@ -136,7 +144,6 @@ const WorldMap: React.FC<WorldMapProps> = ({
              
              // OPTIMIZATION: Removed manual stroke-width updates. 
              // Using vector-effect: non-scaling-stroke in CSS instead.
-             // This significantly improves performance during zoom.
 
              // Scale Icons
              gRef.current.selectAll('.overlay-icon-group')
@@ -165,14 +172,13 @@ const WorldMap: React.FC<WorldMapProps> = ({
           .attr('stroke', 'none');
 
         // 2. Ocean "Wave of Stars" Effect
-        // Generate stars that drift across the map like waves
         const starCount = 350;
         const starData = d3.range(starCount).map(() => ({
             x: d3.randomUniform(-width * 2, width * 3)(), 
             y: d3.randomUniform(-height * 2, height * 3)(),
             r: d3.randomUniform(0.3, 1.8)(),
-            delay: d3.randomUniform(0, 15)(), // Spread out start times so they don't pulse together
-            duration: d3.randomUniform(10, 25)() // Slow movement duration
+            delay: d3.randomUniform(0, 15)(), 
+            duration: d3.randomUniform(10, 25)() 
         }));
 
         g.append('g')
@@ -184,7 +190,7 @@ const WorldMap: React.FC<WorldMapProps> = ({
             .attr('cx', d => d.x)
             .attr('cy', d => d.y)
             .attr('r', d => d.r)
-            .attr('fill', '#bae6fd') // Very light blue (Sky 200)
+            .attr('fill', '#bae6fd') 
             .style('opacity', 0)
             .style('animation', d => `ocean-wave ${d.duration}s infinite linear ${d.delay}s`);
 
@@ -194,9 +200,9 @@ const WorldMap: React.FC<WorldMapProps> = ({
           .attr('class', 'graticule')
           .attr('d', pathGenerator as any)
           .attr('fill', 'none')
-          .attr('stroke', '#1e293b') // Fainter slate
+          .attr('stroke', '#1e293b') 
           .attr('stroke-width', 0.5)
-          .attr('vector-effect', 'non-scaling-stroke') // OPTIMIZATION
+          .attr('vector-effect', 'non-scaling-stroke')
           .attr('stroke-opacity', 0.4);
 
         // 4. Countries
@@ -209,9 +215,73 @@ const WorldMap: React.FC<WorldMapProps> = ({
           .attr('fill', '#1e293b') // Initial Default Land
           .attr('stroke', '#334155')
           .attr('stroke-width', 0.5)
-          .attr('vector-effect', 'non-scaling-stroke') // OPTIMIZATION
+          .attr('vector-effect', 'non-scaling-stroke')
           .style('cursor', 'pointer')
-          .attr('d', pathGenerator as any);
+          .style('pointer-events', 'all') // Ensure pointer events are enabled
+          .attr('d', pathGenerator as any)
+          // --- EVENT BINDING AT CREATION ---
+          .on('click', (event, d: any) => {
+              event.stopPropagation();
+              if (d && d.properties) {
+                  onCountrySelectRef.current(d.properties.name);
+              }
+          })
+          .on('mouseover', function(event, d: any) {
+            if (!d || !d.properties) return;
+            const sel = d3.select(this);
+            sel.raise();
+            
+            // Safety check for overlay group raising
+            if (gRef.current) {
+                const overlayGroup = gRef.current.select('.overlay-group');
+                if (!overlayGroup.empty()) overlayGroup.raise();
+            }
+
+            sel.attr('stroke', '#f8fafc').attr('stroke-width', 1.0);
+            
+            if (tooltipRef.current) {
+                tooltipRef.current.style.opacity = '1';
+                
+                // Build tooltip content using Fresh Data from Ref
+                let content = `<strong>${d.properties.name}</strong>`;
+                const { activeOverlay, conflictZones } = tooltipDataRef.current;
+                
+                // Add conflict info if available
+                if (activeOverlay === 'CONFLICT' && conflictZones) {
+                    const zone = conflictZones.find(c => c.countryName === d.properties.name);
+                    if (zone) {
+                        content += `
+                            <div class="mt-2 pt-2 border-t border-red-500/30 flex flex-col gap-1">
+                                <div class="flex items-center gap-1.5 text-red-400 text-[10px] font-bold uppercase tracking-wider">
+                                    <span>⚠️ Active Conflict</span>
+                                </div>
+                                <div class="text-slate-300 text-[10px] leading-relaxed max-w-[180px] font-normal">
+                                    ${zone.summary}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                tooltipRef.current.innerHTML = content;
+                tooltipRef.current.style.left = `${event.pageX + 15}px`;
+                tooltipRef.current.style.top = `${event.pageY + 15}px`;
+            }
+          })
+          .on('mousemove', (event) => {
+            if (tooltipRef.current) {
+                tooltipRef.current.style.left = `${event.pageX + 15}px`;
+                tooltipRef.current.style.top = `${event.pageY + 15}px`;
+            }
+          })
+          .on('mouseout', function(event, d: any) {
+            const sel = d3.select(this);
+            sel.attr('stroke', '#334155').attr('stroke-width', 0.5);
+            
+            if (tooltipRef.current) {
+                tooltipRef.current.style.opacity = '0';
+            }
+          });
 
         // 5. Overlays Group (Created once)
         g.append('g').attr('class', 'overlay-group').style('pointer-events', 'none');
@@ -240,11 +310,10 @@ const WorldMap: React.FC<WorldMapProps> = ({
 
     try {
         gRef.current.selectAll('.country-block')
-          .interrupt() // STOP any pending transitions to prevent flicker during rapid updates
+          .interrupt() // STOP any pending transitions
           .transition()
           .duration(700)
           .attr('fill', (d: any) => {
-              // Safety check for datum
               if (!d || !d.properties) return '#1e293b';
               return getFillColor(sentimentMap[d.properties.name]);
           })
@@ -324,8 +393,6 @@ const WorldMap: React.FC<WorldMapProps> = ({
             .attr('opacity', 0);
         
         // Apply specific animations based on overlay type
-        // Note: transform-origin is critical for rotation.
-        // The path is drawn in 0,0 to 24,24 space. Center is 12,12.
         path.style('transform-origin', '12px 12px');
 
         if (activeOverlay === 'NUCLEAR') {
@@ -385,82 +452,6 @@ const WorldMap: React.FC<WorldMapProps> = ({
         console.error("Zoom Focus Error:", e);
     }
   }, [selectedCountry, dimensions, geoData]);
-
-  // 6. Update Interactions (Tooltips & Events) - Re-binds when props change to fix stale closures
-  useEffect(() => {
-    if (!gRef.current) return;
-
-    try {
-        // We select all existing country paths and re-apply event listeners
-        // Fixed: Removed generic type arguments from selectAll to prevent TS error about untyped function calls
-        gRef.current.selectAll('.country-block')
-          .on('mouseover', function(event, d: any) {
-            if (!d || !d.properties) return;
-            const sel = d3.select(this);
-            sel.raise();
-            
-            // Safety check for overlay group
-            if (gRef.current) {
-                const overlayGroup = gRef.current.select('.overlay-group');
-                if (!overlayGroup.empty()) overlayGroup.raise();
-            }
-
-            // Using vector-effect so we don't need complex stroke-width math here for hover, just color change
-            sel.attr('stroke', '#f8fafc').attr('stroke-width', 1.0);
-            
-            if (tooltipRef.current) {
-                tooltipRef.current.style.opacity = '1';
-                
-                // Build tooltip content
-                let content = `<strong>${d.properties.name}</strong>`;
-                
-                // Add conflict info if available (Using fresh state)
-                if (activeOverlay === 'CONFLICT' && conflictZones) {
-                    const zone = conflictZones.find(c => c.countryName === d.properties.name);
-                    if (zone) {
-                        content += `
-                            <div class="mt-2 pt-2 border-t border-red-500/30 flex flex-col gap-1">
-                                <div class="flex items-center gap-1.5 text-red-400 text-[10px] font-bold uppercase tracking-wider">
-                                    <span>⚠️ Active Conflict</span>
-                                </div>
-                                <div class="text-slate-300 text-[10px] leading-relaxed max-w-[180px] font-normal">
-                                    ${zone.summary}
-                                </div>
-                            </div>
-                        `;
-                    }
-                }
-
-                tooltipRef.current.innerHTML = content;
-                tooltipRef.current.style.left = `${event.pageX + 15}px`;
-                tooltipRef.current.style.top = `${event.pageY + 15}px`;
-            }
-          })
-          .on('mousemove', (event) => {
-            if (tooltipRef.current) {
-                tooltipRef.current.style.left = `${event.pageX + 15}px`;
-                tooltipRef.current.style.top = `${event.pageY + 15}px`;
-            }
-          })
-          .on('mouseout', function(event, d: any) {
-            const sel = d3.select(this);
-            sel.attr('stroke', '#334155').attr('stroke-width', 0.5);
-            
-            if (tooltipRef.current) {
-                tooltipRef.current.style.opacity = '0';
-            }
-          })
-          .on('click', (event, d: any) => {
-            event.stopPropagation();
-            if (d && d.properties) {
-                onCountrySelect(d.properties.name);
-            }
-          });
-    } catch (e) {
-        console.error("Event Binding Error:", e);
-    }
-
-  }, [activeOverlay, conflictZones, onCountrySelect, geoData, dimensions]);
 
   const handleReset = () => {
     if (svgRef.current && zoomRef.current) {
