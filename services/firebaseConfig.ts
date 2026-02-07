@@ -7,7 +7,7 @@ import { getFirestore, Firestore } from "firebase/firestore";
 
 // Attempt to load from env, fallback to hardcoded strings
 // Using process.env to be consistent with Gemini guidelines and avoid vite/client type issues
-const apiKey = process.env.VITE_FIREBASE_API_KEY ;
+const apiKey = process.env.VITE_FIREBASE_API_KEY;
 const authDomain = process.env.VITE_FIREBASE_AUTH_DOMAIN ;
 const databaseURL = process.env.VITE_FIREBASE_DATABASE_URL ;
 const projectId = process.env.VITE_FIREBASE_PROJECT_ID ;

@@ -8,6 +8,10 @@ import { saveCountryData, getCountryData } from './db';
 const SAFE_DELAY_MS = 15000; 
 const BATCH_SIZE = 5; // Optimized to 5: Safe balance between speed and output token limits
 
+// Data Freshness Threshold (24 Hours)
+const DATA_TTL_HOURS = 24;
+const DATA_TTL_MS = DATA_TTL_HOURS * 60 * 60 * 1000;
+
 /**
  * Helper to fetch and save a batch of countries
  * Returns 3 states: 'SUCCESS', 'SKIP', 'FATAL'
@@ -68,6 +72,13 @@ class SyncManager {
      * @param force If true, ignores DB freshness
      */
     public start(countries: string[], force = false) {
+        if (this.isRunning && !force) {
+            // If already running, merge queue instead of restarting
+             const newItems = countries.filter(c => !this.queue.includes(c));
+             this.queue = [...this.queue, ...newItems];
+             return;
+        }
+
         this.forceMode = force;
         
         // Add only unique items to queue
@@ -143,8 +154,8 @@ class SyncManager {
             } else {
                 for (const country of batch) {
                     const existingData = await getCountryData(country);
-                    // If data missing or old (>22h), add to fetch list
-                    if (!existingData || (Date.now() - existingData.lastUpdated > 1000 * 60 * 60 * 22)) {
+                    // If data missing or old (>24h), add to fetch list
+                    if (!existingData || (Date.now() - existingData.lastUpdated > DATA_TTL_MS)) {
                         countriesToFetch.push(country);
                     }
                 }
@@ -178,7 +189,8 @@ class SyncManager {
             } else {
                 // All items in batch were fresh, skip immediately
                 this.queue.splice(0, BATCH_SIZE);
-                this.timer = setTimeout(() => this.processQueue(), 200);
+                // FAST TRACK: If we skipped, don't wait 200ms, wait 20ms to make the check loop fast
+                this.timer = setTimeout(() => this.processQueue(), 20);
             }
 
         } catch (e) {
@@ -196,17 +208,29 @@ export const syncManager = new SyncManager();
  * Triggers the SyncManager at a specific time of day (e.g. 08:00 AM)
  */
 export const initDailyScheduler = (targetHour: number, getCountriesCallback: () => string[]) => {
-    // Check local storage to see if we already ran for today
     const STORAGE_KEY = 'geopulse_last_daily_sync';
-    const lastRun = localStorage.getItem(STORAGE_KEY);
     const todayStr = new Date().toDateString();
+    
+    // Safely get from local storage
+    let lastRun: string | null = null;
+    try {
+        lastRun = localStorage.getItem(STORAGE_KEY);
+    } catch(e) {
+        console.warn("[DailyScheduler] LocalStorage access failed.", e);
+    }
 
     const runJob = () => {
+        // Double check just in case called via timeout
+        if (syncManager.isSyncing) return;
+
         const countries = getCountriesCallback();
         if (countries.length > 0) {
             // console.debug(`[DailyScheduler] Triggering scheduled update for ${countries.length} countries.`);
+            try {
+                localStorage.setItem(STORAGE_KEY, todayStr);
+            } catch(e) {} // Ignore storage errors
+            
             syncManager.start(countries, false); // false = respect freshness (don't force if already updated manually)
-            localStorage.setItem(STORAGE_KEY, todayStr);
         }
     };
 
@@ -231,13 +255,20 @@ export const initDailyScheduler = (targetHour: number, getCountriesCallback: () 
         }, delay);
     };
 
-    // Initial check on boot: If we haven't run today and it's past target time, run now.
-    // Otherwise, just schedule the future job.
+    // Initial check on boot: 
+    // If we haven't run today AND it's past target time, run now.
     const now = new Date();
     const targetToday = new Date();
     targetToday.setHours(targetHour, 0, 0, 0);
 
-    if (lastRun !== todayStr && now.getTime() >= targetToday.getTime()) {
+    if (lastRun === todayStr) {
+        // Already ran today, just schedule tomorrow
+        scheduleNext();
+        return;
+    }
+
+    if (now.getTime() >= targetToday.getTime()) {
+        // It's past 8am and we haven't run today. Run now.
         runJob();
     }
     
